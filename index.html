@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>永鼎股份 600105 实时量化看板</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111417;
+      --panel: #181d22;
+      --panel-2: #20262d;
+      --text: #eef3f2;
+      --muted: #93a09c;
+      --line: #2c343b;
+      --red: #f05a5a;
+      --green: #35c888;
+      --amber: #f3c969;
+      --blue: #67a7ff;
+      --white-soft: rgba(255,255,255,.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, input { font: inherit; }
+
+    .app {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 0 20px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 38px);
+      line-height: 1.05;
+      font-weight: 800;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .pill, .btn, .input-wrap {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      min-height: 42px;
+      border-radius: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 99px;
+      background: var(--amber);
+      box-shadow: 0 0 0 5px rgba(243,201,105,.12);
+    }
+
+    .dot.live {
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(53,200,136,.12);
+    }
+
+    .btn {
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      cursor: pointer;
+      transition: border-color .18s, background .18s, transform .18s;
+    }
+
+    .btn:hover {
+      border-color: #4b5964;
+      background: #222a31;
+      transform: translateY(-1px);
+    }
+
+    .btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(340px, .85fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 16px;
+      min-width: 0;
+    }
+
+    .metric {
+      min-height: 112px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .value {
+      font-size: clamp(22px, 2vw, 31px);
+      line-height: 1;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .up { color: var(--red); }
+    .down { color: var(--green); }
+    .neutral { color: var(--amber); }
+
+    .chart-panel {
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-title {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 18px;
+      height: 3px;
+      border-radius: 99px;
+      background: var(--blue);
+    }
+
+    .swatch.avg { background: var(--amber); }
+
+    .chart-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 420px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #12171b;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .watermark {
+      position: absolute;
+      inset: auto 18px 16px auto;
+      color: rgba(255,255,255,.18);
+      font-weight: 800;
+      pointer-events: none;
+    }
+
+    .side {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .signal {
+      display: grid;
+      gap: 14px;
+    }
+
+    .signal-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 8px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+    }
+
+    .signal-word {
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .score {
+      width: 72px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at center, var(--panel-2) 58%, transparent 59%),
+        conic-gradient(var(--amber) calc(var(--score, 0) * 1%), rgba(255,255,255,.08) 0);
+      font-weight: 900;
+    }
+
+    .checks {
+      display: grid;
+      gap: 8px;
+    }
+
+    .check {
+      display: grid;
+      grid-template-columns: 22px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .mark {
+      width: 18px;
+      height: 18px;
+      border-radius: 99px;
+      display: grid;
+      place-items: center;
+      color: #08110d;
+      background: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .mark.ok { background: var(--green); }
+    .mark.bad { background: var(--red); color: white; }
+
+    .params {
+      display: grid;
+      gap: 14px;
+    }
+
+    .param {
+      display: grid;
+      grid-template-columns: 1fr 68px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .param input[type="range"] {
+      width: 100%;
+      accent-color: var(--blue);
+    }
+
+    .param-value {
+      text-align: right;
+      color: var(--text);
+      font-weight: 800;
+    }
+
+    .log {
+      display: grid;
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .log-row {
+      display: grid;
+      grid-template-columns: 74px 1fr;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .input-wrap {
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 8px;
+    }
+
+    .input-wrap input {
+      width: 78px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      font-weight: 800;
+    }
+
+    @media (max-width: 1020px) {
+      .layout { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      .app { padding: 14px; }
+      .topbar { align-items: stretch; flex-direction: column; }
+      .toolbar { justify-content: flex-start; }
+      .metrics { grid-template-columns: 1fr; }
+      .chart-panel { min-height: 440px; }
+      .chart-wrap { min-height: 330px; }
+      .panel-head { align-items: flex-start; flex-direction: column; }
+      .param { grid-template-columns: 1fr 54px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>永鼎股份</h1>
+        <div class="sub">A 股单票实时量化看板 · 600105.SH · 只提示信号，不自动交易</div>
+      </div>
+      <div class="toolbar">
+        <div class="input-wrap" title="当前版本固定监控永鼎股份，接口层已预留可替换股票代码">
+          <span class="small">SH</span>
+          <input value="600105" readonly aria-label="股票代码">
+        </div>
+        <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
+        <button class="btn" id="refreshBtn" title="立即刷新" aria-label="立即刷新">
+          <svg viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="metrics">
+      <article class="card metric">
+        <div class="label">最新价</div>
+        <div id="price" class="value">--</div>
+        <div id="time" class="small">等待行情</div>
+      </article>
+      <article class="card metric">
+        <div class="label">涨跌幅</div>
+        <div id="changePct" class="value">--</div>
+        <div id="change" class="small">--</div>
+      </article>
+      <article class="card metric">
+        <div class="label">成交量</div>
+        <div id="volume" class="value">--</div>
+        <div id="turnover" class="small">成交额 --</div>
+      </article>
+      <article class="card metric">
+        <div class="label">日内区间</div>
+        <div id="range" class="value">--</div>
+        <div id="openPrev" class="small">开盘 -- · 昨收 --</div>
+      </article>
+    </section>
+
+    <section class="layout">
+      <article class="card chart-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">实时分时曲线</div>
+            <div id="chartHint" class="small">每 5 秒尝试刷新一次，浏览器保持打开即可持续监控。</div>
+          </div>
+          <div class="legend">
+            <span><i class="swatch"></i>价格</span>
+            <span><i class="swatch avg"></i>动态均价</span>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart" width="1200" height="520"></canvas>
+          <div class="watermark">600105</div>
+        </div>
+      </article>
+
+      <aside class="side">
+        <article class="card signal">
+          <div class="panel-head">
+            <div class="panel-title">买入信号</div>
+            <div id="signalTime" class="small">--</div>
+          </div>
+          <div class="signal-main">
+            <div>
+              <div id="signalWord" class="signal-word neutral">观望</div>
+              <div id="signalReason" class="small">等待足够的分时数据。</div>
+            </div>
+            <div id="score" class="score" style="--score:0">0</div>
+          </div>
+          <div class="checks" id="checks"></div>
+        </article>
+
+        <article class="card params">
+          <div class="panel-title">策略参数</div>
+          <label class="param">
+            <span class="small">突破动态均价</span>
+            <input id="pBreakout" type="range" min="0.1" max="2" value="0.35" step="0.05">
+            <span id="pBreakoutVal" class="param-value">0.35%</span>
+          </label>
+          <label class="param">
+            <span class="small">最小涨幅过滤</span>
+            <input id="pMinRise" type="range" min="-2" max="4" value="0.2" step="0.1">
+            <span id="pMinRiseVal" class="param-value">0.2%</span>
+          </label>
+          <label class="param">
+            <span class="small">放量倍数</span>
+            <input id="pVolume" type="range" min="1" max="4" value="1.4" step="0.1">
+            <span id="pVolumeVal" class="param-value">1.4x</span>
+          </label>
+          <label class="param">
+            <span class="small">最大追高限制</span>
+            <input id="pChase" type="range" min="2" max="9" value="6" step="0.5">
+            <span id="pChaseVal" class="param-value">6%</span>
+          </label>
+        </article>
+
+        <article class="card">
+          <div class="panel-head">
+            <div class="panel-title">监控日志</div>
+            <div id="source" class="small">行情源 --</div>
+          </div>
+          <div id="log" class="log" aria-live="polite"></div>
+        </article>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const STOCK = { code: "600105", symbol: "sh600105", name: "永鼎股份" };
+    const REFRESH_MS = 5000;
+    const MAX_POINTS = 260;
+    const state = {
+      ticks: [],
+      lastVolume: null,
+      lastFetchAt: null,
+      quote: null,
+      fetchTimer: null,
+      source: "--",
+      errors: 0
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const els = {
+      liveDot: $("liveDot"),
+      marketStatus: $("marketStatus"),
+      price: $("price"),
+      time: $("time"),
+      changePct: $("changePct"),
+      change: $("change"),
+      volume: $("volume"),
+      turnover: $("turnover"),
+      range: $("range"),
+      openPrev: $("openPrev"),
+      signalTime: $("signalTime"),
+      signalWord: $("signalWord"),
+      signalReason: $("signalReason"),
+      score: $("score"),
+      checks: $("checks"),
+      log: $("log"),
+      source: $("source"),
+      chartHint: $("chartHint")
+    };
+
+    const params = {
+      breakout: $("pBreakout"),
+      minRise: $("pMinRise"),
+      volume: $("pVolume"),
+      chase: $("pChase")
+    };
+
+    const fmt = {
+      price: (n) => Number.isFinite(n) ? n.toFixed(2) : "--",
+      pct: (n) => Number.isFinite(n) ? `${n >= 0 ? "+" : ""}${n.toFixed(2)}%` : "--",
+      num: (n) => Number.isFinite(n) ? n.toLocaleString("zh-CN") : "--",
+      money: (n) => {
+        if (!Number.isFinite(n)) return "--";
+        if (Math.abs(n) >= 1e8) return `${(n / 1e8).toFixed(2)} 亿`;
+        if (Math.abs(n) >= 1e4) return `${(n / 1e4).toFixed(2)} 万`;
+        return n.toFixed(0);
+      },
+      time: (d) => d.toLocaleTimeString("zh-CN", { hour12: false })
+    };
+
+    function isTradingWindow(now = new Date()) {
+      const day = now.getDay();
+      const minutes = now.getHours() * 60 + now.getMinutes();
+      const morning = minutes >= 9 * 60 + 30 && minutes <= 11 * 60 + 30;
+      const afternoon = minutes >= 13 * 60 && minutes <= 15 * 60;
+      return day >= 1 && day <= 5 && (morning || afternoon);
+    }
+
+    function fetchJsonp(url, globalName, timeout = 4500) {
+      return new Promise((resolve, reject) => {
+        const callbackName = `jsonp_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        const sep = url.includes("?") ? "&" : "?";
+        const script = document.createElement("script");
+        const done = (fn, value) => {
+          clearTimeout(timer);
+          script.remove();
+          try { delete window[callbackName]; } catch (e) { window[callbackName] = undefined; }
+          fn(value);
+        };
+        window[callbackName] = (payload) => done(resolve, payload);
+        script.onerror = () => done(reject, new Error("行情源连接失败"));
+        script.src = `${url}${sep}${globalName}=${callbackName}`;
+        const timer = setTimeout(() => done(reject, new Error("行情源超时")), timeout);
+        document.head.appendChild(script);
+      });
+    }
+
+    function fetchSina() {
+      return new Promise((resolve, reject) => {
+        const stamp = Date.now();
+        const script = document.createElement("script");
+        const varName = `hq_str_${STOCK.symbol}`;
+        script.charset = "gbk";
+        script.src = `https://hq.sinajs.cn/list=${STOCK.symbol}&_=${stamp}`;
+        const timer = setTimeout(() => {
+          if (script.parentNode) {
+            script.remove();
+            reject(new Error("新浪行情超时"));
+          }
+        }, 4500);
+        script.onload = () => {
+          clearTimeout(timer);
+          const raw = window[varName] || "";
+          script.remove();
+          if (!raw) return reject(new Error("新浪行情为空"));
+          resolve(parseSina(raw));
+        };
+        script.onerror = () => {
+          clearTimeout(timer);
+          script.remove();
+          reject(new Error("新浪行情连接失败"));
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    function parseSina(raw) {
+      const parts = raw.split(",");
+      const name = parts[0] || STOCK.name;
+      const open = Number(parts[1]);
+      const prevClose = Number(parts[2]);
+      const price = Number(parts[3]);
+      const high = Number(parts[4]);
+      const low = Number(parts[5]);
+      const volumeShares = Number(parts[8]);
+      const turnover = Number(parts[9]);
+      const dateText = parts[30] || "";
+      const timeText = parts[31] || "";
+      const at = parseDate(`${dateText} ${timeText}`);
+      return normalizeQuote({
+        source: "新浪",
+        name,
+        price,
+        open,
+        prevClose,
+        high,
+        low,
+        volume: volumeShares,
+        turnover,
+        at
+      });
+    }
+
+    async function fetchTencent() {
+      const stamp = Date.now();
+      await loadScript(`https://qt.gtimg.cn/q=${STOCK.symbol}&_=${stamp}`);
+      const raw = window[`v_${STOCK.symbol}`] || "";
+      if (!raw) throw new Error("腾讯行情为空");
+      return parseTencent(raw);
+    }
+
+    function parseTencent(raw) {
+      const parts = raw.split("~");
+      return normalizeQuote({
+        source: "腾讯",
+        name: parts[1] || STOCK.name,
+        price: Number(parts[3]),
+        prevClose: Number(parts[4]),
+        open: Number(parts[5]),
+        volume: Number(parts[6]) * 100,
+        turnover: Number(parts[37]) * 10000,
+        high: Number(parts[33]),
+        low: Number(parts[34]),
+        at: parseCompactTime(parts[30])
+      });
+    }
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        const timer = setTimeout(() => {
+          if (script.parentNode) {
+            script.remove();
+            reject(new Error("脚本行情源超时"));
+          }
+        }, 4500);
+        script.src = src;
+        script.onload = () => {
+          clearTimeout(timer);
+          script.remove();
+          resolve();
+        };
+        script.onerror = () => {
+          clearTimeout(timer);
+          script.remove();
+          reject(new Error("脚本行情源失败"));
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    function parseDate(text) {
+      const parsed = new Date(text.replace(/-/g, "/"));
+      return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+    }
+
+    function parseCompactTime(text) {
+      if (!text || text.length < 14) return new Date();
+      const y = text.slice(0, 4);
+      const m = text.slice(4, 6);
+      const d = text.slice(6, 8);
+      const h = text.slice(8, 10);
+      const min = text.slice(10, 12);
+      const s = text.slice(12, 14);
+      return parseDate(`${y}/${m}/${d} ${h}:${min}:${s}`);
+    }
+
+    function normalizeQuote(q) {
+      const change = q.price - q.prevClose;
+      const changePct = q.prevClose ? change / q.prevClose * 100 : 0;
+      return { ...q, change, changePct };
+    }
+
+    async function refresh() {
+      try {
+        let quote;
+        try {
+          quote = await fetchSina();
+        } catch (e) {
+          quote = await fetchTencent();
+        }
+        state.errors = 0;
+        state.source = quote.source;
+        addTick(quote);
+        render();
+      } catch (error) {
+        state.errors += 1;
+        setConnection("行情连接失败", false);
+        addLog(`行情读取失败：${error.message}`);
+        renderChart();
+      }
+    }
+
+    function addTick(quote) {
+      const now = new Date();
+      const last = state.ticks[state.ticks.length - 1];
+      const volumeDelta = last && Number.isFinite(quote.volume)
+        ? Math.max(0, quote.volume - last.volume)
+        : 0;
+      const tick = { ...quote, seenAt: now, volumeDelta };
+      state.quote = quote;
+      state.lastFetchAt = now;
+      const isDuplicate = last && Math.abs(last.price - quote.price) < 0.0001 && last.volume === quote.volume && fmt.time(last.at) === fmt.time(quote.at);
+      if (!isDuplicate || state.ticks.length === 0) {
+        state.ticks.push(tick);
+        if (state.ticks.length > MAX_POINTS) state.ticks.shift();
+        addLog(`${fmt.price(quote.price)} · ${fmt.pct(quote.changePct)} · ${quote.source}`);
+      }
+    }
+
+    function setConnection(text, live) {
+      els.marketStatus.textContent = text;
+      els.liveDot.classList.toggle("live", live);
+    }
+
+    function addLog(text) {
+      const row = document.createElement("div");
+      row.className = "log-row";
+      row.innerHTML = `<span>${fmt.time(new Date())}</span><span>${text}</span>`;
+      els.log.prepend(row);
+      while (els.log.children.length > 18) els.log.lastChild.remove();
+    }
+
+    function render() {
+      const q = state.quote;
+      if (!q) return;
+      const live = isTradingWindow();
+      setConnection(live ? "交易时段监控中" : "非交易时段", live);
+      els.price.textContent = fmt.price(q.price);
+      els.price.className = `value ${q.change > 0 ? "up" : q.change < 0 ? "down" : ""}`;
+      els.time.textContent = `行情时间 ${q.at.toLocaleString("zh-CN", { hour12: false })}`;
+      els.changePct.textContent = fmt.pct(q.changePct);
+      els.changePct.className = `value ${q.change > 0 ? "up" : q.change < 0 ? "down" : ""}`;
+      els.change.textContent = `涨跌 ${q.change >= 0 ? "+" : ""}${fmt.price(q.change)}`;
+      els.volume.textContent = fmt.money(q.volume);
+      els.turnover.textContent = `成交额 ${fmt.money(q.turnover)}`;
+      els.range.textContent = `${fmt.price(q.low)} - ${fmt.price(q.high)}`;
+      els.openPrev.textContent = `开盘 ${fmt.price(q.open)} · 昨收 ${fmt.price(q.prevClose)}`;
+      els.source.textContent = `行情源 ${state.source}`;
+      renderSignal();
+      renderChart();
+    }
+
+    function dynamicAverage(points) {
+      const weighted = points.reduce((sum, p) => sum + p.price * Math.max(1, p.volumeDelta), 0);
+      const vol = points.reduce((sum, p) => sum + Math.max(1, p.volumeDelta), 0);
+      return vol ? weighted / vol : points.reduce((sum, p) => sum + p.price, 0) / Math.max(1, points.length);
+    }
+
+    function movingAverage(points, size) {
+      const slice = points.slice(-size);
+      return slice.reduce((sum, p) => sum + p.price, 0) / Math.max(1, slice.length);
+    }
+
+    function renderSignal() {
+      const q = state.quote;
+      const points = state.ticks;
+      const p = readParams();
+      const avg = dynamicAverage(points);
+      const maFast = movingAverage(points, 5);
+      const maSlow = movingAverage(points, 18);
+      const recent = points.slice(-20);
+      const avgVol = recent.reduce((s, x) => s + x.volumeDelta, 0) / Math.max(1, recent.length);
+      const latestVol = points[points.length - 1]?.volumeDelta || 0;
+      const rangePct = q.prevClose ? (q.high - q.low) / q.prevClose * 100 : 0;
+      const rules = [
+        {
+          name: "价格强于动态均价",
+          ok: q.price >= avg * (1 + p.breakout / 100),
+          value: `${(((q.price / avg) - 1) * 100).toFixed(2)}%`
+        },
+        {
+          name: "短线趋势向上",
+          ok: maFast >= maSlow && points.length >= 8,
+          value: `${fmt.price(maFast)} / ${fmt.price(maSlow)}`
+        },
+        {
+          name: "涨幅满足过滤",
+          ok: q.changePct >= p.minRise,
+          value: fmt.pct(q.changePct)
+        },
+        {
+          name: "未明显追高",
+          ok: q.changePct <= p.chase,
+          value: fmt.pct(q.changePct)
+        },
+        {
+          name: "成交活跃",
+          ok: points.length < 6 ? false : latestVol >= avgVol * p.volume,
+          value: latestVol ? `${(latestVol / Math.max(1, avgVol)).toFixed(1)}x` : "--"
+        },
+        {
+          name: "日内波动可控",
+          ok: rangePct <= 8 && rangePct > 0,
+          value: fmt.pct(rangePct)
+        }
+      ];
+      const okCount = rules.filter(r => r.ok).length;
+      const score = Math.round(okCount / rules.length * 100);
+      const word = score >= 82 ? "触发买点" : score >= 62 ? "接近买点" : "观望";
+      const cls = score >= 82 ? "up" : score >= 62 ? "neutral" : "";
+      els.signalWord.textContent = word;
+      els.signalWord.className = `signal-word ${cls}`;
+      els.signalReason.textContent = score >= 82
+        ? "多项条件同步满足，可作为人工复核信号。"
+        : score >= 62
+          ? "条件正在接近，等待趋势或成交量进一步确认。"
+          : "当前条件不足，继续监控。";
+      els.signalTime.textContent = state.lastFetchAt ? fmt.time(state.lastFetchAt) : "--";
+      els.score.textContent = String(score);
+      els.score.style.setProperty("--score", score);
+      els.checks.innerHTML = rules.map(r => `
+        <div class="check">
+          <span class="mark ${r.ok ? "ok" : "bad"}">${r.ok ? "✓" : "!"}</span>
+          <span>${r.name}</span>
+          <span class="small">${r.value}</span>
+        </div>
+      `).join("");
+    }
+
+    function readParams() {
+      return {
+        breakout: Number(params.breakout.value),
+        minRise: Number(params.minRise.value),
+        volume: Number(params.volume.value),
+        chase: Number(params.chase.value)
+      };
+    }
+
+    function updateParamLabels() {
+      $("pBreakoutVal").textContent = `${Number(params.breakout.value).toFixed(2)}%`;
+      $("pMinRiseVal").textContent = `${Number(params.minRise.value).toFixed(1)}%`;
+      $("pVolumeVal").textContent = `${Number(params.volume.value).toFixed(1)}x`;
+      $("pChaseVal").textContent = `${Number(params.chase.value).toFixed(1).replace(".0", "")}%`;
+    }
+
+    function renderChart() {
+      const canvas = $("chart");
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(600, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(320, Math.floor(rect.height * dpr));
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const w = rect.width;
+      const h = rect.height;
+      ctx.clearRect(0, 0, w, h);
+      drawGrid(ctx, w, h);
+      const points = state.ticks;
+      if (points.length < 2) {
+        ctx.fillStyle = "rgba(255,255,255,.45)";
+        ctx.font = "16px Microsoft YaHei, sans-serif";
+        ctx.fillText("等待实时分时数据...", 24, 42);
+        return;
+      }
+      const prices = points.map(p => p.price).filter(Number.isFinite);
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+      const pad = Math.max((max - min) * 0.18, 0.02);
+      const yMin = min - pad;
+      const yMax = max + pad;
+      const x = (i) => 44 + i * ((w - 78) / Math.max(1, points.length - 1));
+      const y = (price) => 24 + (yMax - price) / Math.max(0.001, yMax - yMin) * (h - 64);
+      drawLine(ctx, points.map((p, i) => [x(i), y(p.price)]), "#67a7ff", 2.4);
+      const avgs = points.map((_, i) => dynamicAverage(points.slice(0, i + 1)));
+      drawLine(ctx, avgs.map((v, i) => [x(i), y(v)]), "#f3c969", 1.6);
+      drawAxisLabels(ctx, w, h, yMin, yMax, points);
+    }
+
+    function drawGrid(ctx, w, h) {
+      ctx.strokeStyle = "rgba(255,255,255,.07)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = 24 + i * ((h - 64) / 4);
+        ctx.beginPath();
+        ctx.moveTo(44, y);
+        ctx.lineTo(w - 24, y);
+        ctx.stroke();
+      }
+      for (let i = 0; i <= 5; i++) {
+        const x = 44 + i * ((w - 78) / 5);
+        ctx.beginPath();
+        ctx.moveTo(x, 24);
+        ctx.lineTo(x, h - 40);
+        ctx.stroke();
+      }
+    }
+
+    function drawLine(ctx, pts, color, width) {
+      if (!pts.length) return;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      pts.forEach(([x, y], index) => index ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+      ctx.stroke();
+    }
+
+    function drawAxisLabels(ctx, w, h, yMin, yMax, points) {
+      ctx.fillStyle = "rgba(255,255,255,.52)";
+      ctx.font = "12px Microsoft YaHei, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(yMax.toFixed(2), 8, 30);
+      ctx.fillText(((yMin + yMax) / 2).toFixed(2), 8, h / 2);
+      ctx.fillText(yMin.toFixed(2), 8, h - 42);
+      ctx.textAlign = "center";
+      ctx.fillText(fmt.time(points[0].at), 60, h - 16);
+      ctx.fillText(fmt.time(points[points.length - 1].at), w - 74, h - 16);
+    }
+
+    Object.values(params).forEach(input => {
+      input.addEventListener("input", () => {
+        updateParamLabels();
+        if (state.quote) renderSignal();
+      });
+    });
+    $("refreshBtn").addEventListener("click", refresh);
+    window.addEventListener("resize", renderChart);
+
+    updateParamLabels();
+    addLog("看板已启动，正在连接行情源。");
+    refresh();
+    state.fetchTimer = setInterval(refresh, REFRESH_MS);
+  </script>
+</body>
+</html>
