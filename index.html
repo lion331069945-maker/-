@@ -450,7 +450,7 @@
     <header class="topbar">
       <div class="brand">
         <h1 id="stockName">永鼎股份</h1>
-        <div id="stockSub" class="sub">A 股多股票实时量化看板 · 股票池 3 只 · 600105.SH · v6</div>
+        <div id="stockSub" class="sub">A 股多股票实时量化看板 · 股票池 3 只 · 600105.SH · v7</div>
       </div>
       <div class="toolbar">
         <div class="input-wrap" title="选择要监控的 A 股">
@@ -531,11 +531,15 @@
           <label class="param">
             <span class="small">策略模式</span>
             <select id="pStrategyMode" aria-label="策略模式">
+              <!-- STRATEGY_OPTIONS_START -->
               <option value="balanced">综合多因子</option>
               <option value="strictTrend">AI 严进趋势</option>
               <option value="volumeBreakout">放量突破</option>
               <option value="pullback">缩量回踩</option>
               <option value="maAlignment">多头排列</option>
+              <option value="hotMomentum">热点强势</option>
+              <option value="riskFirst">风控优先</option>
+                  <!-- STRATEGY_OPTIONS_END -->
             </select>
           </label>
           <label class="param">
@@ -885,7 +889,7 @@
       const stock = state.currentStock;
       document.title = `${stock.name} ${stock.code} 实时量化看板`;
       els.stockName.textContent = stock.name;
-      els.stockSub.textContent = `A 股多股票实时量化看板 · 股票池 3 只 · ${stock.code}.${stock.market} · v6`;
+      els.stockSub.textContent = `A 股多股票实时量化看板 · 股票池 3 只 · ${stock.code}.${stock.market} · v7`;
       els.watermark.textContent = stock.code;
     }
 
@@ -1066,43 +1070,115 @@
       return "bad";
     }
 
-    const strategyProfiles = {
-      balanced: {
-        label: "综合多因子",
-        note: "综合趋势、动量、量能、价格位置与风险过滤。",
-        weights: { trend: 0.24, momentum: 0.20, volume: 0.18, position: 0.18, risk: 0.20 },
-        trigger: 82,
-        near: 66
+    // STRATEGY_CONFIG_START
+const strategyProfiles = {
+      "balanced": {
+            "id": "balanced",
+            "label": "综合多因子",
+            "note": "综合趋势、动量、量能、价格位置与风险过滤。",
+            "weights": {
+                  "trend": 0.24,
+                  "momentum": 0.2,
+                  "volume": 0.18,
+                  "position": 0.18,
+                  "risk": 0.2
+            },
+            "trigger": 82,
+            "near": 66,
+            "rule": "balanced"
       },
-      strictTrend: {
-        label: "AI 严进趋势",
-        note: "借鉴 AI 分析工具的严进严出思路，优先要求趋势、动量、风控同时过关。",
-        weights: { trend: 0.30, momentum: 0.24, volume: 0.14, position: 0.12, risk: 0.20 },
-        trigger: 86,
-        near: 72
+      "strictTrend": {
+            "id": "strictTrend",
+            "label": "AI 严进趋势",
+            "note": "借鉴 AI 分析工具的严进严出思路，优先要求趋势、动量、风控同时过关。",
+            "weights": {
+                  "trend": 0.3,
+                  "momentum": 0.24,
+                  "volume": 0.14,
+                  "position": 0.12,
+                  "risk": 0.2
+            },
+            "trigger": 86,
+            "near": 72,
+            "rule": "strictTrend"
       },
-      volumeBreakout: {
-        label: "放量突破",
-        note: "适合观察突破日内高位或动态均价后的资金确认。",
-        weights: { trend: 0.20, momentum: 0.18, volume: 0.30, position: 0.18, risk: 0.14 },
-        trigger: 82,
-        near: 68
+      "volumeBreakout": {
+            "id": "volumeBreakout",
+            "label": "放量突破",
+            "note": "适合观察突破日内高位或动态均价后的资金确认。",
+            "weights": {
+                  "trend": 0.2,
+                  "momentum": 0.18,
+                  "volume": 0.3,
+                  "position": 0.18,
+                  "risk": 0.14
+            },
+            "trigger": 82,
+            "near": 68,
+            "rule": "volumeBreakout"
       },
-      pullback: {
-        label: "缩量回踩",
-        note: "适合观察趋势未破、靠近均价且成交萎缩后的低吸条件。",
-        weights: { trend: 0.24, momentum: 0.12, volume: 0.16, position: 0.28, risk: 0.20 },
-        trigger: 78,
-        near: 64
+      "pullback": {
+            "id": "pullback",
+            "label": "缩量回踩",
+            "note": "适合观察趋势未破、靠近均价且成交萎缩后的低吸条件。",
+            "weights": {
+                  "trend": 0.24,
+                  "momentum": 0.12,
+                  "volume": 0.16,
+                  "position": 0.28,
+                  "risk": 0.2
+            },
+            "trigger": 78,
+            "near": 64,
+            "rule": "pullback"
       },
-      maAlignment: {
-        label: "多头排列",
-        note: "适合观察短中长期均线顺序和趋势延续。",
-        weights: { trend: 0.36, momentum: 0.18, volume: 0.12, position: 0.14, risk: 0.20 },
-        trigger: 84,
-        near: 68
+      "maAlignment": {
+            "id": "maAlignment",
+            "label": "多头排列",
+            "note": "适合观察短中长期均线顺序和趋势延续。",
+            "weights": {
+                  "trend": 0.36,
+                  "momentum": 0.18,
+                  "volume": 0.12,
+                  "position": 0.14,
+                  "risk": 0.2
+            },
+            "trigger": 84,
+            "near": 68,
+            "rule": "maAlignment"
+      },
+      "hotMomentum": {
+            "id": "hotMomentum",
+            "label": "热点强势",
+            "note": "借鉴 AI 日报里的热点强势股筛选，强调开盘强度、动量和成交额确认。",
+            "weights": {
+                  "trend": 0.22,
+                  "momentum": 0.3,
+                  "volume": 0.22,
+                  "position": 0.1,
+                  "risk": 0.16
+            },
+            "trigger": 84,
+            "near": 70,
+            "rule": "hotMomentum"
+      },
+      "riskFirst": {
+            "id": "riskFirst",
+            "label": "风控优先",
+            "note": "先过滤追高、回撤和过热，只在风险舒适时提高信号等级。",
+            "weights": {
+                  "trend": 0.18,
+                  "momentum": 0.14,
+                  "volume": 0.14,
+                  "position": 0.18,
+                  "risk": 0.36
+            },
+            "trigger": 80,
+            "near": 66,
+            "rule": "riskFirst"
       }
-    };
+};
+        // STRATEGY_CONFIG_END
 
     function strategyBonus(mode, ind, q, p) {
       if (mode === "strictTrend") {
@@ -1137,6 +1213,24 @@
           bonus: ind.maAlignment ? 8 : -4,
           label: ind.maAlignment ? "多头排列成立" : "均线排列未完成",
           detail: `MA5 ${fmt.price(ind.maFast)} / MA13 ${fmt.price(ind.maMid)} / MA34 ${fmt.price(ind.maSlow)}`
+        };
+      }
+      if (mode === "hotMomentum") {
+        const strong = ind.openStrength >= 1.2 && ind.rsi >= 50 && ind.rsi <= p.rsiMax && q.changePct >= Math.max(1.5, p.minRise);
+        const active = ind.volumePulse >= Math.max(1.1, p.volume - 0.2) || q.turnover >= 1e9;
+        return {
+          bonus: strong && active ? 10 : strong || active ? 3 : -6,
+          label: strong && active ? "热点强势确认" : "热点强度观察",
+          detail: `开盘强度 ${fmt.pct(ind.openStrength)} · 成交额 ${fmt.money(q.turnover)} · RSI ${ind.rsi.toFixed(0)}`
+        };
+      }
+      if (mode === "riskFirst") {
+        const cool = q.changePct <= p.chase && ind.drawdown <= p.drawdown && ind.rsi <= p.rsiMax && ind.intradayRange <= 7.5;
+        const acceptable = ind.drawdown <= p.drawdown + 0.8 && ind.rsi <= p.rsiMax + 4;
+        return {
+          bonus: cool ? 8 : acceptable ? 0 : -10,
+          label: cool ? "风险舒适" : acceptable ? "风险可接受" : "风险偏高",
+          detail: `回撤 ${fmt.pct(ind.drawdown)} · 振幅 ${fmt.pct(ind.intradayRange)} · RSI ${ind.rsi.toFixed(0)}`
         };
       }
       return {
