@@ -30,7 +30,7 @@
       letter-spacing: 0;
     }
 
-    button, input { font: inherit; }
+    button, input, select { font: inherit; }
 
     .app {
       max-width: 1440px;
@@ -387,6 +387,21 @@
       gap: 8px;
     }
 
+    .input-wrap select {
+      min-width: 184px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .input-wrap option {
+      color: #111417;
+      background: #ffffff;
+    }
+
     .input-wrap input {
       width: 78px;
       border: 0;
@@ -417,13 +432,16 @@
   <main class="app">
     <header class="topbar">
       <div class="brand">
-        <h1>永鼎股份</h1>
-        <div class="sub">A 股单票实时量化看板 · 600105.SH · 只提示信号，不自动交易</div>
+        <h1 id="stockName">永鼎股份</h1>
+        <div id="stockSub" class="sub">A 股单票实时量化看板 · 600105.SH · 只提示信号，不自动交易</div>
       </div>
       <div class="toolbar">
-        <div class="input-wrap" title="当前版本固定监控永鼎股份，接口层已预留可替换股票代码">
-          <span class="small">SH</span>
-          <input value="600105" readonly aria-label="股票代码">
+        <div class="input-wrap" title="选择要监控的 A 股">
+          <span class="small">股票</span>
+          <select id="stockSelect" aria-label="选择股票">
+            <option value="600105">永鼎股份 · 600105.SH</option>
+            <option value="603629">利通电子 · 603629.SH</option>
+          </select>
         </div>
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
         <button class="btn" id="refreshBtn" title="立即刷新" aria-label="立即刷新">
@@ -470,7 +488,7 @@
         </div>
         <div class="chart-wrap">
           <canvas id="chart" width="1200" height="520"></canvas>
-          <div class="watermark">600105</div>
+          <div id="watermark" class="watermark">600105</div>
         </div>
       </article>
 
@@ -536,22 +554,31 @@
   </main>
 
   <script>
-    const STOCK = { code: "600105", symbol: "sh600105", name: "永鼎股份" };
+    const STOCKS = {
+      "600105": { code: "600105", symbol: "sh600105", name: "永鼎股份", market: "SH" },
+      "603629": { code: "603629", symbol: "sh603629", name: "利通电子", market: "SH" }
+    };
     const REFRESH_MS = 5000;
     const MAX_POINTS = 260;
     const state = {
+      currentStock: STOCKS["600105"],
       ticks: [],
       lastVolume: null,
       lastFetchAt: null,
       quote: null,
       fetchTimer: null,
       source: "--",
-      errors: 0
+      errors: 0,
+      requestId: 0
     };
 
     const $ = (id) => document.getElementById(id);
     const els = {
       liveDot: $("liveDot"),
+      stockName: $("stockName"),
+      stockSub: $("stockSub"),
+      stockSelect: $("stockSelect"),
+      watermark: $("watermark"),
       marketStatus: $("marketStatus"),
       price: $("price"),
       time: $("time"),
@@ -624,9 +651,10 @@
       return new Promise((resolve, reject) => {
         const stamp = Date.now();
         const script = document.createElement("script");
-        const varName = `hq_str_${STOCK.symbol}`;
+        const stock = state.currentStock;
+        const varName = `hq_str_${stock.symbol}`;
         script.charset = "gbk";
-        script.src = `https://hq.sinajs.cn/list=${STOCK.symbol}&_=${stamp}`;
+        script.src = `https://hq.sinajs.cn/list=${stock.symbol}&_=${stamp}`;
         const timer = setTimeout(() => {
           if (script.parentNode) {
             script.remove();
@@ -651,7 +679,7 @@
 
     function parseSina(raw) {
       const parts = raw.split(",");
-      const name = parts[0] || STOCK.name;
+      const name = parts[0] || state.currentStock.name;
       const open = Number(parts[1]);
       const prevClose = Number(parts[2]);
       const price = Number(parts[3]);
@@ -678,8 +706,9 @@
 
     async function fetchTencent() {
       const stamp = Date.now();
-      await loadScript(`https://qt.gtimg.cn/q=${STOCK.symbol}&_=${stamp}`);
-      const raw = window[`v_${STOCK.symbol}`] || "";
+      const stock = state.currentStock;
+      await loadScript(`https://qt.gtimg.cn/q=${stock.symbol}&_=${stamp}`);
+      const raw = window[`v_${stock.symbol}`] || "";
       if (!raw) throw new Error("腾讯行情为空");
       return parseTencent(raw);
     }
@@ -688,7 +717,7 @@
       const parts = raw.split("~");
       return normalizeQuote({
         source: "腾讯",
-        name: parts[1] || STOCK.name,
+        name: parts[1] || state.currentStock.name,
         price: Number(parts[3]),
         prevClose: Number(parts[4]),
         open: Number(parts[5]),
@@ -747,6 +776,8 @@
     }
 
     async function refresh() {
+      const requestId = ++state.requestId;
+      const requestStock = state.currentStock;
       try {
         let quote;
         try {
@@ -754,11 +785,13 @@
         } catch (e) {
           quote = await fetchTencent();
         }
+        if (requestId !== state.requestId || requestStock.code !== state.currentStock.code) return;
         state.errors = 0;
         state.source = quote.source;
         addTick(quote);
         render();
       } catch (error) {
+        if (requestId !== state.requestId || requestStock.code !== state.currentStock.code) return;
         state.errors += 1;
         setConnection("行情连接失败", false);
         addLog(`行情读取失败：${error.message}`);
@@ -779,7 +812,7 @@
       if (!isDuplicate || state.ticks.length === 0) {
         state.ticks.push(tick);
         if (state.ticks.length > MAX_POINTS) state.ticks.shift();
-        addLog(`${fmt.price(quote.price)} · ${fmt.pct(quote.changePct)} · ${quote.source}`);
+        addLog(`${state.currentStock.name} ${fmt.price(quote.price)} · ${fmt.pct(quote.changePct)} · ${quote.source}`);
       }
     }
 
@@ -794,6 +827,55 @@
       row.innerHTML = `<span>${fmt.time(new Date())}</span><span>${text}</span>`;
       els.log.prepend(row);
       while (els.log.children.length > 18) els.log.lastChild.remove();
+    }
+
+    function resetDisplay() {
+      els.price.textContent = "--";
+      els.price.className = "value";
+      els.time.textContent = "等待行情";
+      els.changePct.textContent = "--";
+      els.changePct.className = "value";
+      els.change.textContent = "--";
+      els.volume.textContent = "--";
+      els.turnover.textContent = "成交额 --";
+      els.range.textContent = "--";
+      els.openPrev.textContent = "开盘 -- · 昨收 --";
+      els.signalTime.textContent = "--";
+      els.signalWord.textContent = "观望";
+      els.signalWord.className = "signal-word neutral";
+      els.signalReason.textContent = "等待足够的分时数据。";
+      els.score.textContent = "0";
+      els.score.style.setProperty("--score", 0);
+      els.checks.innerHTML = "";
+      els.source.textContent = "行情源 --";
+      renderChart();
+    }
+
+    function updateStockHeader() {
+      const stock = state.currentStock;
+      document.title = `${stock.name} ${stock.code} 实时量化看板`;
+      els.stockName.textContent = stock.name;
+      els.stockSub.textContent = `A 股多股票实时量化看板 · ${stock.code}.${stock.market} · 只提示信号，不自动交易`;
+      els.watermark.textContent = stock.code;
+    }
+
+    function switchStock(code) {
+      const next = STOCKS[code];
+      if (!next || next.code === state.currentStock.code) return;
+      state.currentStock = next;
+      state.ticks = [];
+      state.lastVolume = null;
+      state.lastFetchAt = null;
+      state.quote = null;
+      state.source = "--";
+      state.errors = 0;
+      state.requestId += 1;
+      els.log.innerHTML = "";
+      setConnection("切换中", false);
+      updateStockHeader();
+      resetDisplay();
+      addLog(`已切换到 ${next.name} ${next.code}.${next.market}，正在连接行情源。`);
+      refresh();
     }
 
     function render() {
@@ -1123,9 +1205,11 @@
       });
     });
     $("refreshBtn").addEventListener("click", refresh);
+    els.stockSelect.addEventListener("change", (event) => switchStock(event.target.value));
     window.addEventListener("resize", renderChart);
 
     updateParamLabels();
+    updateStockHeader();
     addLog("看板已启动，正在连接行情源。");
     refresh();
     state.fetchTimer = setInterval(refresh, REFRESH_MS);
