@@ -222,6 +222,7 @@
     }
 
     .swatch.avg { background: var(--amber); }
+    .swatch.ema { background: var(--green); }
 
     .chart-wrap {
       position: relative;
@@ -301,6 +302,27 @@
       border-top: 1px solid var(--line);
     }
 
+    .check strong {
+      display: block;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .check em {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-style: normal;
+      margin-top: 2px;
+    }
+
+    .check-score {
+      min-width: 52px;
+      text-align: right;
+      font-weight: 800;
+    }
+
     .mark {
       width: 18px;
       height: 18px;
@@ -315,6 +337,7 @@
 
     .mark.ok { background: var(--green); }
     .mark.bad { background: var(--red); color: white; }
+    .mark.warn { background: var(--amber); }
 
     .params {
       display: grid;
@@ -442,6 +465,7 @@
           <div class="legend">
             <span><i class="swatch"></i>价格</span>
             <span><i class="swatch avg"></i>动态均价</span>
+            <span><i class="swatch ema"></i>EMA 趋势</span>
           </div>
         </div>
         <div class="chart-wrap">
@@ -469,9 +493,9 @@
         <article class="card params">
           <div class="panel-title">策略参数</div>
           <label class="param">
-            <span class="small">突破动态均价</span>
-            <input id="pBreakout" type="range" min="0.1" max="2" value="0.35" step="0.05">
-            <span id="pBreakoutVal" class="param-value">0.35%</span>
+            <span class="small">均价突破阈值</span>
+            <input id="pBreakout" type="range" min="0.1" max="2" value="0.30" step="0.05">
+            <span id="pBreakoutVal" class="param-value">0.30%</span>
           </label>
           <label class="param">
             <span class="small">最小涨幅过滤</span>
@@ -482,6 +506,16 @@
             <span class="small">放量倍数</span>
             <input id="pVolume" type="range" min="1" max="4" value="1.4" step="0.1">
             <span id="pVolumeVal" class="param-value">1.4x</span>
+          </label>
+          <label class="param">
+            <span class="small">RSI 上限</span>
+            <input id="pRsiMax" type="range" min="58" max="86" value="76" step="1">
+            <span id="pRsiMaxVal" class="param-value">76</span>
+          </label>
+          <label class="param">
+            <span class="small">最大回撤</span>
+            <input id="pDrawdown" type="range" min="1" max="7" value="3.5" step="0.5">
+            <span id="pDrawdownVal" class="param-value">3.5%</span>
           </label>
           <label class="param">
             <span class="small">最大追高限制</span>
@@ -541,6 +575,8 @@
       breakout: $("pBreakout"),
       minRise: $("pMinRise"),
       volume: $("pVolume"),
+      rsiMax: $("pRsiMax"),
+      drawdown: $("pDrawdown"),
       chase: $("pChase")
     };
 
@@ -791,68 +827,185 @@
       return slice.reduce((sum, p) => sum + p.price, 0) / Math.max(1, slice.length);
     }
 
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function scoreRange(value, low, high) {
+      if (!Number.isFinite(value)) return 0;
+      return clamp((value - low) / Math.max(0.0001, high - low) * 100, 0, 100);
+    }
+
+    function ema(values, period) {
+      if (!values.length) return NaN;
+      const k = 2 / (period + 1);
+      return values.reduce((prev, value, index) => index ? value * k + prev * (1 - k) : value, values[0]);
+    }
+
+    function emaSeries(values, period) {
+      const k = 2 / (period + 1);
+      const out = [];
+      values.forEach((value, index) => {
+        out.push(index ? value * k + out[index - 1] * (1 - k) : value);
+      });
+      return out;
+    }
+
+    function standardDeviation(values) {
+      if (!values.length) return 0;
+      const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+      const variance = values.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / values.length;
+      return Math.sqrt(variance);
+    }
+
+    function calcRsi(points, period = 14) {
+      if (points.length < 3) return 50;
+      const slice = points.slice(-(period + 1));
+      let gains = 0;
+      let losses = 0;
+      for (let i = 1; i < slice.length; i++) {
+        const diff = slice[i].price - slice[i - 1].price;
+        if (diff >= 0) gains += diff;
+        else losses -= diff;
+      }
+      if (losses === 0) return gains === 0 ? 50 : 100;
+      const rs = gains / losses;
+      return 100 - 100 / (1 + rs);
+    }
+
+    function calcMacd(points) {
+      const prices = points.map(p => p.price);
+      const fastSeries = emaSeries(prices, 12);
+      const slowSeries = emaSeries(prices, 26);
+      const difSeries = prices.map((_, index) => fastSeries[index] - slowSeries[index]);
+      const deaSeries = emaSeries(difSeries, 9);
+      const dif = difSeries[difSeries.length - 1] || 0;
+      const dea = deaSeries[deaSeries.length - 1] || 0;
+      const hist = (dif - dea) * 2;
+      const prevHist = difSeries.length > 1
+        ? ((difSeries[difSeries.length - 2] || 0) - (deaSeries[deaSeries.length - 2] || 0)) * 2
+        : hist;
+      return { dif, dea, hist, prevHist };
+    }
+
+    function calcIndicators(points, q) {
+      const prices = points.map(p => p.price);
+      const latest = points[points.length - 1] || q;
+      const avg = dynamicAverage(points);
+      const maFast = movingAverage(points, 5);
+      const maMid = movingAverage(points, 13);
+      const maSlow = movingAverage(points, 34);
+      const emaFast = ema(prices, 8);
+      const emaSlow = ema(prices, 21);
+      const macd = calcMacd(points);
+      const rsi = calcRsi(points, 14);
+      const bbSlice = prices.slice(-20);
+      const bbMid = bbSlice.reduce((sum, value) => sum + value, 0) / Math.max(1, bbSlice.length);
+      const bbStd = standardDeviation(bbSlice);
+      const bbUpper = bbMid + bbStd * 2;
+      const bbLower = bbMid - bbStd * 2;
+      const bbPos = (q.price - bbLower) / Math.max(0.0001, bbUpper - bbLower) * 100;
+      const recent = points.slice(-20);
+      const prevRecent = recent.slice(0, -1);
+      const avgVol = prevRecent.reduce((sum, item) => sum + item.volumeDelta, 0) / Math.max(1, prevRecent.length);
+      const latestVol = latest.volumeDelta || 0;
+      const volumePulse = latestVol / Math.max(1, avgVol);
+      const highSinceOpen = Math.max(q.high || q.price, ...prices);
+      const lowSinceOpen = Math.min(q.low || q.price, ...prices);
+      const drawdown = highSinceOpen ? (highSinceOpen - q.price) / highSinceOpen * 100 : 0;
+      const intradayRange = q.prevClose ? (q.high - q.low) / q.prevClose * 100 : 0;
+      const avgBias = avg ? (q.price / avg - 1) * 100 : 0;
+      const trendSlope = maMid ? (maFast / maMid - 1) * 100 : 0;
+      const openStrength = q.open ? (q.price / q.open - 1) * 100 : 0;
+      return {
+        avg,
+        maFast,
+        maMid,
+        maSlow,
+        emaFast,
+        emaSlow,
+        macd,
+        rsi,
+        bbPos,
+        volumePulse,
+        drawdown,
+        intradayRange,
+        avgBias,
+        trendSlope,
+        openStrength,
+        highSinceOpen,
+        lowSinceOpen
+      };
+    }
+
+    function factorMark(score) {
+      if (score >= 70) return "ok";
+      if (score >= 45) return "warn";
+      return "bad";
+    }
+
     function renderSignal() {
       const q = state.quote;
       const points = state.ticks;
       const p = readParams();
-      const avg = dynamicAverage(points);
-      const maFast = movingAverage(points, 5);
-      const maSlow = movingAverage(points, 18);
-      const recent = points.slice(-20);
-      const avgVol = recent.reduce((s, x) => s + x.volumeDelta, 0) / Math.max(1, recent.length);
-      const latestVol = points[points.length - 1]?.volumeDelta || 0;
-      const rangePct = q.prevClose ? (q.high - q.low) / q.prevClose * 100 : 0;
-      const rules = [
+      const ind = calcIndicators(points, q);
+      const minDataScore = scoreRange(points.length, 4, 28);
+      const factors = [
         {
-          name: "价格强于动态均价",
-          ok: q.price >= avg * (1 + p.breakout / 100),
-          value: `${(((q.price / avg) - 1) * 100).toFixed(2)}%`
+          name: "趋势确认",
+          detail: `MA5 ${fmt.price(ind.maFast)} / MA13 ${fmt.price(ind.maMid)} / EMA8-21 ${fmt.pct((ind.emaFast / ind.emaSlow - 1) * 100)}`,
+          score: Math.round((scoreRange(ind.trendSlope, -0.15, 0.55) * 0.45) + (scoreRange((ind.emaFast / ind.emaSlow - 1) * 100, -0.15, 0.45) * 0.35) + (q.price >= ind.maFast ? 20 : 0)),
+          weight: 0.24
         },
         {
-          name: "短线趋势向上",
-          ok: maFast >= maSlow && points.length >= 8,
-          value: `${fmt.price(maFast)} / ${fmt.price(maSlow)}`
+          name: "动量确认",
+          detail: `MACD柱 ${ind.macd.hist.toFixed(3)} · RSI ${ind.rsi.toFixed(0)} · 较开盘 ${fmt.pct(ind.openStrength)}`,
+          score: Math.round((scoreRange(ind.macd.hist - ind.macd.prevHist, -0.02, 0.06) * 0.35) + (scoreRange(ind.openStrength, -0.6, 1.8) * 0.35) + ((ind.rsi >= 45 && ind.rsi <= p.rsiMax) ? 30 : ind.rsi > p.rsiMax ? 8 : 14)),
+          weight: 0.20
         },
         {
-          name: "涨幅满足过滤",
-          ok: q.changePct >= p.minRise,
-          value: fmt.pct(q.changePct)
+          name: "成交量确认",
+          detail: `最新量能 ${ind.volumePulse.toFixed(1)}x · 阈值 ${p.volume.toFixed(1)}x`,
+          score: Math.round(scoreRange(ind.volumePulse, 0.75, Math.max(p.volume, 1.1) + 1.4)),
+          weight: 0.18
         },
         {
-          name: "未明显追高",
-          ok: q.changePct <= p.chase,
-          value: fmt.pct(q.changePct)
+          name: "价格位置",
+          detail: `均价偏离 ${fmt.pct(ind.avgBias)} · 布林位置 ${ind.bbPos.toFixed(0)}%`,
+          score: Math.round((scoreRange(ind.avgBias, p.breakout - 0.35, p.breakout + 1.2) * 0.55) + ((ind.bbPos >= 35 && ind.bbPos <= 88) ? 45 : ind.bbPos > 88 ? 18 : 25)),
+          weight: 0.18
         },
         {
-          name: "成交活跃",
-          ok: points.length < 6 ? false : latestVol >= avgVol * p.volume,
-          value: latestVol ? `${(latestVol / Math.max(1, avgVol)).toFixed(1)}x` : "--"
-        },
-        {
-          name: "日内波动可控",
-          ok: rangePct <= 8 && rangePct > 0,
-          value: fmt.pct(rangePct)
+          name: "风险过滤",
+          detail: `涨幅 ${fmt.pct(q.changePct)} · 回撤 ${fmt.pct(ind.drawdown)} · 振幅 ${fmt.pct(ind.intradayRange)}`,
+          score: Math.round((q.changePct >= p.minRise ? 24 : 6) + (q.changePct <= p.chase ? 26 : 4) + (ind.drawdown <= p.drawdown ? 26 : 8) + (ind.intradayRange > 0 && ind.intradayRange <= 8 ? 24 : 8)),
+          weight: 0.20
         }
-      ];
-      const okCount = rules.filter(r => r.ok).length;
-      const score = Math.round(okCount / rules.length * 100);
-      const word = score >= 82 ? "触发买点" : score >= 62 ? "接近买点" : "观望";
+      ].map(factor => ({ ...factor, score: clamp(factor.score, 0, 100) }));
+      const rawScore = factors.reduce((sum, factor) => sum + factor.score * factor.weight, 0);
+      const riskBlock = q.changePct > p.chase || ind.drawdown > p.drawdown || ind.rsi > p.rsiMax + 8 || ind.intradayRange > 9.5;
+      const score = Math.round(clamp(rawScore * (0.7 + minDataScore * 0.003), 0, riskBlock ? 72 : 100));
+      const word = riskBlock ? "风控观望" : score >= 82 ? "触发买点" : score >= 66 ? "接近买点" : score >= 48 ? "弱信号" : "观望";
       const cls = score >= 82 ? "up" : score >= 62 ? "neutral" : "";
       els.signalWord.textContent = word;
       els.signalWord.className = `signal-word ${cls}`;
-      els.signalReason.textContent = score >= 82
-        ? "多项条件同步满足，可作为人工复核信号。"
-        : score >= 62
-          ? "条件正在接近，等待趋势或成交量进一步确认。"
-          : "当前条件不足，继续监控。";
+      els.signalReason.textContent = riskBlock
+        ? "风险闸门触发，等待回撤、过热或振幅降温。"
+        : score >= 82
+          ? "趋势、动量、量能和价格位置同步满足，可作为人工复核信号。"
+          : score >= 66
+            ? "多因子正在接近，重点等成交量或趋势继续确认。"
+            : score >= 48
+              ? "已有局部条件，但一致性还不够。"
+              : "当前条件不足，继续监控。";
       els.signalTime.textContent = state.lastFetchAt ? fmt.time(state.lastFetchAt) : "--";
       els.score.textContent = String(score);
       els.score.style.setProperty("--score", score);
-      els.checks.innerHTML = rules.map(r => `
+      els.checks.innerHTML = factors.map(factor => `
         <div class="check">
-          <span class="mark ${r.ok ? "ok" : "bad"}">${r.ok ? "✓" : "!"}</span>
-          <span>${r.name}</span>
-          <span class="small">${r.value}</span>
+          <span class="mark ${factorMark(factor.score)}">${factor.score >= 70 ? "✓" : factor.score >= 45 ? "~" : "!"}</span>
+          <span><strong>${factor.name}</strong><em>${factor.detail}</em></span>
+          <span class="check-score">${factor.score}</span>
         </div>
       `).join("");
     }
@@ -862,6 +1015,8 @@
         breakout: Number(params.breakout.value),
         minRise: Number(params.minRise.value),
         volume: Number(params.volume.value),
+        rsiMax: Number(params.rsiMax.value),
+        drawdown: Number(params.drawdown.value),
         chase: Number(params.chase.value)
       };
     }
@@ -870,6 +1025,8 @@
       $("pBreakoutVal").textContent = `${Number(params.breakout.value).toFixed(2)}%`;
       $("pMinRiseVal").textContent = `${Number(params.minRise.value).toFixed(1)}%`;
       $("pVolumeVal").textContent = `${Number(params.volume.value).toFixed(1)}x`;
+      $("pRsiMaxVal").textContent = `${Number(params.rsiMax.value).toFixed(0)}`;
+      $("pDrawdownVal").textContent = `${Number(params.drawdown.value).toFixed(1)}%`;
       $("pChaseVal").textContent = `${Number(params.chase.value).toFixed(1).replace(".0", "")}%`;
     }
 
@@ -886,7 +1043,7 @@
       ctx.clearRect(0, 0, w, h);
       drawGrid(ctx, w, h);
       const points = state.ticks;
-      if (points.length < 2) {
+      if (points.length < 1) {
         ctx.fillStyle = "rgba(255,255,255,.45)";
         ctx.font = "16px Microsoft YaHei, sans-serif";
         ctx.fillText("等待实时分时数据...", 24, 42);
@@ -900,9 +1057,22 @@
       const yMax = max + pad;
       const x = (i) => 44 + i * ((w - 78) / Math.max(1, points.length - 1));
       const y = (price) => 24 + (yMax - price) / Math.max(0.001, yMax - yMin) * (h - 64);
+      if (points.length < 2) {
+        ctx.fillStyle = "#67a7ff";
+        ctx.beginPath();
+        ctx.arc(w / 2, y(points[0].price), 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,.45)";
+        ctx.font = "14px Microsoft YaHei, sans-serif";
+        ctx.fillText("已取得最新行情，交易时段连续刷新后形成曲线。", 24, 42);
+        drawAxisLabels(ctx, w, h, yMin, yMax, points);
+        return;
+      }
       drawLine(ctx, points.map((p, i) => [x(i), y(p.price)]), "#67a7ff", 2.4);
       const avgs = points.map((_, i) => dynamicAverage(points.slice(0, i + 1)));
       drawLine(ctx, avgs.map((v, i) => [x(i), y(v)]), "#f3c969", 1.6);
+      const emaTrend = emaSeries(points.map(p => p.price), 13);
+      drawLine(ctx, emaTrend.map((v, i) => [x(i), y(v)]), "#35c888", 1.4);
       drawAxisLabels(ctx, w, h, yMin, yMax, points);
     }
 
