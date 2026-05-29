@@ -1,0 +1,31 @@
+name: Update Yongding Daily Data
+
+on:
+  schedule:
+    - cron: "20 8 * * 1-5"
+    - cron: "10 12 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-daily-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Generate daily data
+        run: python scripts/update_yongding_daily.py
+
+      - name: Commit data changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update Yongding daily data"
+          file_pattern: data/yd_600105_daily.json
