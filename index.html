@@ -3,60 +3,63 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>永鼎股份 600105 实时量化看板</title>
+  <title>永鼎股份 600105 日K中长线观察看板</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #111417;
-      --panel: #181d22;
-      --panel-2: #20262d;
-      --text: #eef3f2;
-      --muted: #93a09c;
-      --line: #2c343b;
-      --red: #f05a5a;
-      --green: #35c888;
-      --amber: #f3c969;
-      --blue: #67a7ff;
-      --white-soft: rgba(255,255,255,.08);
+      --bg: #101214;
+      --panel: #181b1f;
+      --panel-2: #20242a;
+      --panel-3: #252a31;
+      --text: #eef2ef;
+      --muted: #9aa59f;
+      --line: #30363d;
+      --red: #ee6262;
+      --green: #34c08a;
+      --amber: #efc55f;
+      --blue: #6ca7ff;
+      --cyan: #67d7dd;
+      --violet: #b59cff;
     }
 
     * { box-sizing: border-box; }
+    html { background: var(--bg); }
     body {
       margin: 0;
       min-height: 100vh;
       background: var(--bg);
       color: var(--text);
-      font-family: "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, sans-serif;
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       letter-spacing: 0;
     }
 
     button, input, select { font: inherit; }
 
     .app {
-      max-width: 1440px;
+      width: min(1500px, 100%);
       margin: 0 auto;
       padding: 20px;
     }
 
     .topbar {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      padding: 18px 0 20px;
+      align-items: center;
+      gap: 18px;
+      padding: 10px 0 18px;
     }
 
     .brand {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+      display: grid;
+      gap: 8px;
+      min-width: 0;
     }
 
     h1 {
       margin: 0;
-      font-size: clamp(24px, 3vw, 38px);
+      font-size: clamp(26px, 3.4vw, 44px);
       line-height: 1.05;
-      font-weight: 800;
+      font-weight: 900;
     }
 
     .sub {
@@ -67,12 +70,12 @@
     .toolbar {
       display: flex;
       align-items: center;
+      justify-content: flex-end;
       gap: 10px;
       flex-wrap: wrap;
-      justify-content: flex-end;
     }
 
-    .pill, .btn, .input-wrap {
+    .pill, .btn {
       border: 1px solid var(--line);
       background: var(--panel);
       color: var(--text);
@@ -87,32 +90,34 @@
       padding: 0 12px;
       color: var(--muted);
       white-space: nowrap;
+      max-width: 100%;
     }
 
     .dot {
       width: 8px;
       height: 8px;
-      border-radius: 99px;
+      border-radius: 50%;
       background: var(--amber);
-      box-shadow: 0 0 0 5px rgba(243,201,105,.12);
+      box-shadow: 0 0 0 5px rgba(239,197,95,.13);
+      flex: 0 0 auto;
     }
 
     .dot.live {
       background: var(--green);
-      box-shadow: 0 0 0 5px rgba(53,200,136,.12);
+      box-shadow: 0 0 0 5px rgba(52,192,138,.13);
     }
 
     .btn {
-      display: inline-grid;
-      place-items: center;
       width: 42px;
+      display: grid;
+      place-items: center;
       cursor: pointer;
-      transition: border-color .18s, background .18s, transform .18s;
+      transition: background .16s, border-color .16s, transform .16s;
     }
 
     .btn:hover {
-      border-color: #4b5964;
-      background: #222a31;
+      background: var(--panel-2);
+      border-color: #52606a;
       transform: translateY(-1px);
     }
 
@@ -126,16 +131,9 @@
       stroke-linejoin: round;
     }
 
-    .layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1.65fr) minmax(340px, .85fr);
-      gap: 16px;
-      align-items: start;
-    }
-
     .metrics {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 12px;
       margin-bottom: 16px;
     }
@@ -149,10 +147,9 @@
     }
 
     .metric {
-      min-height: 112px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
+      min-height: 116px;
+      display: grid;
+      align-content: space-between;
       gap: 10px;
     }
 
@@ -165,45 +162,63 @@
     }
 
     .value {
-      font-size: clamp(22px, 2vw, 31px);
+      font-size: clamp(22px, 2vw, 30px);
       line-height: 1;
-      font-weight: 800;
+      font-weight: 900;
       overflow-wrap: anywhere;
     }
 
     .small {
       color: var(--muted);
       font-size: 13px;
-      line-height: 1.4;
+      line-height: 1.45;
     }
 
     .up { color: var(--red); }
     .down { color: var(--green); }
     .neutral { color: var(--amber); }
+    .blue { color: var(--blue); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(380px, .9fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .chart-stack, .side {
+      display: grid;
+      gap: 16px;
+    }
 
     .chart-panel {
-      min-height: 520px;
+      min-height: 420px;
       display: flex;
       flex-direction: column;
       gap: 14px;
     }
 
+    .chart-panel.daily {
+      min-height: 500px;
+    }
+
     .panel-head {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      align-items: flex-start;
+      gap: 14px;
     }
 
     .panel-title {
       font-size: 18px;
-      font-weight: 800;
+      font-weight: 900;
     }
 
     .legend {
       display: flex;
-      gap: 12px;
       flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px 12px;
       color: var(--muted);
       font-size: 12px;
     }
@@ -212,6 +227,7 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      white-space: nowrap;
     }
 
     .swatch {
@@ -222,17 +238,21 @@
     }
 
     .swatch.avg { background: var(--amber); }
-    .swatch.ema { background: var(--green); }
+    .swatch.ema { background: var(--cyan); }
+    .swatch.ma20 { background: var(--amber); }
+    .swatch.ma60 { background: var(--violet); }
 
     .chart-wrap {
       position: relative;
       flex: 1;
-      min-height: 420px;
+      min-height: 320px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: #12171b;
+      background: #111519;
       overflow: hidden;
     }
+
+    .daily .chart-wrap { min-height: 395px; }
 
     canvas {
       display: block;
@@ -242,42 +262,37 @@
 
     .watermark {
       position: absolute;
-      inset: auto 18px 16px auto;
-      color: rgba(255,255,255,.18);
-      font-weight: 800;
+      right: 18px;
+      bottom: 14px;
+      color: rgba(255,255,255,.16);
+      font-weight: 900;
       pointer-events: none;
     }
 
-    .side {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .signal {
+    .verdict {
       display: grid;
       gap: 14px;
     }
 
-    .signal-main {
+    .verdict-main {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 14px;
       padding: 14px;
       border-radius: 8px;
-      background: var(--panel-2);
       border: 1px solid var(--line);
+      background: var(--panel-2);
     }
 
     .signal-word {
-      font-size: 28px;
+      font-size: clamp(25px, 3vw, 34px);
       line-height: 1;
       font-weight: 900;
     }
 
     .score {
-      width: 72px;
+      width: 76px;
       aspect-ratio: 1;
       border-radius: 50%;
       display: grid;
@@ -286,162 +301,193 @@
         radial-gradient(circle at center, var(--panel-2) 58%, transparent 59%),
         conic-gradient(var(--amber) calc(var(--score, 0) * 1%), rgba(255,255,255,.08) 0);
       font-weight: 900;
+      flex: 0 0 auto;
     }
 
-    .checks {
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag {
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 9px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,.035);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .tag.ok { color: var(--green); border-color: rgba(52,192,138,.34); }
+    .tag.warn { color: var(--amber); border-color: rgba(239,197,95,.34); }
+    .tag.bad { color: var(--red); border-color: rgba(238,98,98,.34); }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .mini {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: 8px;
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .mini strong {
+      font-size: 15px;
+      overflow-wrap: anywhere;
+    }
+
+    .horizon {
+      display: grid;
+      gap: 10px;
+    }
+
+    .horizon-row {
+      display: grid;
+      grid-template-columns: 74px 1fr;
+      gap: 10px;
+      padding: 12px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .horizon-row:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .horizon-row b {
+      font-size: 14px;
+    }
+
+    .levels {
       display: grid;
       gap: 8px;
     }
 
-    .check {
+    .level-row {
       display: grid;
-      grid-template-columns: 22px 1fr auto;
+      grid-template-columns: 92px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 10px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .level-row:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .level-row b {
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .factor-list {
+      display: grid;
       gap: 8px;
+    }
+
+    .factor {
+      display: grid;
+      grid-template-columns: 22px 1fr 46px;
+      gap: 9px;
       align-items: center;
       padding: 10px 0;
       border-top: 1px solid var(--line);
     }
 
-    .check strong {
-      display: block;
-      color: var(--text);
-      font-size: 14px;
-      font-weight: 800;
-    }
-
-    .check em {
-      display: block;
-      color: var(--muted);
-      font-size: 12px;
-      font-style: normal;
-      margin-top: 2px;
-    }
-
-    .check-score {
-      min-width: 52px;
-      text-align: right;
-      font-weight: 800;
-    }
+    .factor:first-child { border-top: 0; }
 
     .mark {
       width: 18px;
       height: 18px;
-      border-radius: 99px;
       display: grid;
       place-items: center;
-      color: #08110d;
+      border-radius: 50%;
       background: var(--muted);
+      color: #09100d;
       font-size: 12px;
       font-weight: 900;
     }
 
     .mark.ok { background: var(--green); }
-    .mark.bad { background: var(--red); color: white; }
     .mark.warn { background: var(--amber); }
+    .mark.bad { background: var(--red); color: white; }
 
-    .params {
-      display: grid;
-      gap: 14px;
+    .factor strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 2px;
     }
 
-    .param {
-      display: grid;
-      grid-template-columns: 1fr 68px;
-      gap: 12px;
-      align-items: center;
+    .factor em {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      font-style: normal;
     }
 
-    .param select {
-      grid-column: 1 / -1;
-      min-height: 38px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel-2);
-      color: var(--text);
-      padding: 0 10px;
-      outline: 0;
-      font-weight: 800;
-    }
-
-    .param select option {
-      color: #111417;
-      background: #ffffff;
-    }
-
-    .param input[type="range"] {
-      width: 100%;
-      accent-color: var(--blue);
-    }
-
-    .param-value {
+    .factor-score {
       text-align: right;
+      font-weight: 900;
       color: var(--text);
-      font-weight: 800;
     }
 
     .log {
       display: grid;
       gap: 8px;
-      max-height: 220px;
+      max-height: 180px;
       overflow: auto;
       padding-right: 4px;
     }
 
     .log-row {
       display: grid;
-      grid-template-columns: 74px 1fr;
-      gap: 10px;
+      grid-template-columns: 70px 1fr;
+      gap: 8px;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 12px;
       padding-bottom: 8px;
       border-bottom: 1px solid rgba(255,255,255,.06);
     }
 
-    .input-wrap {
-      display: flex;
-      align-items: center;
-      padding: 0 10px;
-      gap: 8px;
+    .risk-note {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+      text-align: center;
     }
 
-    .input-wrap select {
-      min-width: 184px;
-      border: 0;
-      outline: 0;
-      background: transparent;
-      color: var(--text);
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    .input-wrap option {
-      color: #111417;
-      background: #ffffff;
-    }
-
-    .input-wrap input {
-      width: 78px;
-      border: 0;
-      outline: 0;
-      background: transparent;
-      color: var(--text);
-      font-weight: 800;
-    }
-
-    @media (max-width: 1020px) {
+    @media (max-width: 1180px) {
+      .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .layout { grid-template-columns: 1fr; }
-      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 720px) {
       .app { padding: 14px; }
       .topbar { align-items: stretch; flex-direction: column; }
       .toolbar { justify-content: flex-start; }
-      .metrics { grid-template-columns: 1fr; }
-      .chart-panel { min-height: 440px; }
-      .chart-wrap { min-height: 330px; }
-      .panel-head { align-items: flex-start; flex-direction: column; }
-      .param { grid-template-columns: 1fr 54px; }
+      .metrics, .grid-2 { grid-template-columns: 1fr; }
+      .chart-panel, .chart-panel.daily { min-height: 420px; }
+      .daily .chart-wrap, .chart-wrap { min-height: 315px; }
+      .panel-head { flex-direction: column; }
+      .legend { justify-content: flex-start; }
+      .horizon-row, .level-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -449,20 +495,13 @@
   <main class="app">
     <header class="topbar">
       <div class="brand">
-        <h1 id="stockName">永鼎股份</h1>
-        <div id="stockSub" class="sub">A 股多股票实时量化看板 · 股票池 3 只 · 600105.SH · v7</div>
+        <h1>永鼎股份 600105.SH</h1>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v8</div>
       </div>
       <div class="toolbar">
-        <div class="input-wrap" title="选择要监控的 A 股">
-          <span class="small">股票</span>
-          <select id="stockSelect" aria-label="选择股票">
-            <option value="600105">永鼎股份 · 600105.SH</option>
-            <option value="603629">利通电子 · 603629.SH</option>
-            <option value="000988">华工科技 · 000988.SZ</option>
-          </select>
-        </div>
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
-        <button class="btn" id="refreshBtn" title="立即刷新" aria-label="立即刷新">
+        <div class="pill"><span>日K</span><strong id="dailyDate">--</strong></div>
+        <button class="btn" id="refreshBtn" title="刷新" aria-label="刷新">
           <svg viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"/></svg>
         </button>
       </div>
@@ -472,186 +511,184 @@
       <article class="card metric">
         <div class="label">最新价</div>
         <div id="price" class="value">--</div>
-        <div id="time" class="small">等待行情</div>
+        <div id="priceTime" class="small">等待行情</div>
       </article>
       <article class="card metric">
-        <div class="label">涨跌幅</div>
+        <div class="label">当日涨跌</div>
         <div id="changePct" class="value">--</div>
-        <div id="change" class="small">--</div>
+        <div id="changeText" class="small">--</div>
       </article>
       <article class="card metric">
-        <div class="label">成交量</div>
-        <div id="volume" class="value">--</div>
-        <div id="turnover" class="small">成交额 --</div>
+        <div class="label">中长线评分</div>
+        <div id="topScore" class="value neutral">--</div>
+        <div id="topSignal" class="small">等待日K数据</div>
       </article>
       <article class="card metric">
-        <div class="label">日内区间</div>
-        <div id="range" class="value">--</div>
-        <div id="openPrev" class="small">开盘 -- · 昨收 --</div>
+        <div class="label">趋势结构</div>
+        <div id="trendState" class="value">--</div>
+        <div id="trendDetail" class="small">MA20 / MA60 / MA120</div>
+      </article>
+      <article class="card metric">
+        <div class="label">量能与波动</div>
+        <div id="volumeState" class="value">--</div>
+        <div id="volumeDetail" class="small">量比 / ATR</div>
       </article>
     </section>
 
     <section class="layout">
-      <article class="card chart-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">实时分时曲线</div>
-            <div id="chartHint" class="small">每 5 秒尝试刷新一次，浏览器保持打开即可持续监控。</div>
+      <div class="chart-stack">
+        <article class="card chart-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">分时实时曲线</div>
+              <div id="intradayHint" class="small">价格 · 动态均价 · EMA13</div>
+            </div>
+            <div class="legend">
+              <span><i class="swatch"></i>价格</span>
+              <span><i class="swatch avg"></i>均价</span>
+              <span><i class="swatch ema"></i>EMA13</span>
+            </div>
           </div>
-          <div class="legend">
-            <span><i class="swatch"></i>价格</span>
-            <span><i class="swatch avg"></i>动态均价</span>
-            <span><i class="swatch ema"></i>EMA 趋势</span>
+          <div class="chart-wrap">
+            <canvas id="intradayChart" width="1200" height="430"></canvas>
+            <div class="watermark">600105</div>
           </div>
-        </div>
-        <div class="chart-wrap">
-          <canvas id="chart" width="1200" height="520"></canvas>
-          <div id="watermark" class="watermark">600105</div>
-        </div>
-      </article>
+        </article>
+
+        <article class="card chart-panel daily">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">日K趋势图</div>
+              <div id="dailyHint" class="small">最近 90 个交易日 · MA20 / MA60</div>
+            </div>
+            <div class="legend">
+              <span><i class="swatch ma20"></i>MA20</span>
+              <span><i class="swatch ma60"></i>MA60</span>
+              <span><i class="swatch"></i>K线</span>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="dailyChart" width="1200" height="520"></canvas>
+            <div class="watermark">Daily K</div>
+          </div>
+        </article>
+      </div>
 
       <aside class="side">
-        <article class="card signal">
+        <article class="card verdict">
           <div class="panel-head">
-            <div class="panel-title">买入信号</div>
-            <div id="signalTime" class="small">--</div>
+            <div class="panel-title">日K策略结论</div>
+            <div id="modelSource" class="small">Qlib / TradingAgents / OpenBB 思路</div>
           </div>
-          <div class="signal-main">
+          <div class="verdict-main">
             <div>
-              <div id="signalWord" class="signal-word neutral">观望</div>
-              <div id="signalReason" class="small">等待足够的分时数据。</div>
+              <div id="signalWord" class="signal-word neutral">观察</div>
+              <div id="signalReason" class="small">等待日K数据完成计算</div>
             </div>
             <div id="score" class="score" style="--score:0">0</div>
           </div>
-          <div class="checks" id="checks"></div>
-        </article>
-
-        <article class="card params">
-          <div class="panel-title">策略参数</div>
-          <label class="param">
-            <span class="small">策略模式</span>
-            <select id="pStrategyMode" aria-label="策略模式">
-              <!-- STRATEGY_OPTIONS_START -->
-              <option value="balanced">综合多因子</option>
-              <option value="strictTrend">AI 严进趋势</option>
-              <option value="volumeBreakout">放量突破</option>
-              <option value="pullback">缩量回踩</option>
-              <option value="maAlignment">多头排列</option>
-              <option value="hotMomentum">热点强势</option>
-              <option value="riskFirst">风控优先</option>
-                  <!-- STRATEGY_OPTIONS_END -->
-            </select>
-          </label>
-          <label class="param">
-            <span class="small">均价突破阈值</span>
-            <input id="pBreakout" type="range" min="0.1" max="2" value="0.30" step="0.05">
-            <span id="pBreakoutVal" class="param-value">0.30%</span>
-          </label>
-          <label class="param">
-            <span class="small">最小涨幅过滤</span>
-            <input id="pMinRise" type="range" min="-2" max="4" value="0.2" step="0.1">
-            <span id="pMinRiseVal" class="param-value">0.2%</span>
-          </label>
-          <label class="param">
-            <span class="small">放量倍数</span>
-            <input id="pVolume" type="range" min="1" max="4" value="1.4" step="0.1">
-            <span id="pVolumeVal" class="param-value">1.4x</span>
-          </label>
-          <label class="param">
-            <span class="small">RSI 上限</span>
-            <input id="pRsiMax" type="range" min="58" max="86" value="76" step="1">
-            <span id="pRsiMaxVal" class="param-value">76</span>
-          </label>
-          <label class="param">
-            <span class="small">最大回撤</span>
-            <input id="pDrawdown" type="range" min="1" max="7" value="3.5" step="0.5">
-            <span id="pDrawdownVal" class="param-value">3.5%</span>
-          </label>
-          <label class="param">
-            <span class="small">最大追高限制</span>
-            <input id="pChase" type="range" min="2" max="9" value="6" step="0.5">
-            <span id="pChaseVal" class="param-value">6%</span>
-          </label>
+          <div id="evidenceTags" class="tags"></div>
         </article>
 
         <article class="card">
           <div class="panel-head">
-            <div class="panel-title">监控日志</div>
-            <div id="source" class="small">行情源 --</div>
+            <div class="panel-title">周期观察</div>
+            <div id="analysisTime" class="small">--</div>
+          </div>
+          <div id="horizon" class="horizon"></div>
+        </article>
+
+        <article class="card">
+          <div class="panel-title">关键价位</div>
+          <div id="levels" class="levels"></div>
+        </article>
+
+        <article class="card">
+          <div class="panel-title">核心指标</div>
+          <div id="factors" class="factor-list"></div>
+        </article>
+
+        <article class="card">
+          <div class="panel-head">
+            <div class="panel-title">更新记录</div>
+            <div id="quoteSource" class="small">行情源 --</div>
           </div>
           <div id="log" class="log" aria-live="polite"></div>
         </article>
       </aside>
     </section>
+
+    <div class="risk-note">本看板只用于行情观察和策略辅助，不构成投资建议；买卖决策请结合个人风险承受能力独立判断。</div>
   </main>
 
   <script>
-    const STOCKS = {
-      "600105": { code: "600105", symbol: "sh600105", name: "永鼎股份", market: "SH" },
-      "603629": { code: "603629", symbol: "sh603629", name: "利通电子", market: "SH" },
-      "000988": { code: "000988", symbol: "sz000988", name: "华工科技", market: "SZ" }
+    const STOCK = {
+      code: "600105",
+      name: "永鼎股份",
+      market: "SH",
+      sina: "sh600105",
+      tencent: "sh600105",
+      eastmoneySecid: "1.600105"
     };
+
     const REFRESH_MS = 5000;
-    const MAX_POINTS = 260;
+    const DAILY_REFRESH_MS = 30 * 60 * 1000;
+    const MAX_INTRADAY_POINTS = 260;
+
     const state = {
-      currentStock: STOCKS["600105"],
-      ticks: [],
-      lastVolume: null,
-      lastFetchAt: null,
       quote: null,
-      fetchTimer: null,
-      source: "--",
-      errors: 0,
-      requestId: 0
+      ticks: [],
+      daily: [],
+      analysis: null,
+      lastFetchAt: null,
+      quoteSource: "--",
+      quoteLoading: false,
+      requestId: 0,
+      timers: []
     };
 
     const $ = (id) => document.getElementById(id);
     const els = {
       liveDot: $("liveDot"),
-      stockName: $("stockName"),
-      stockSub: $("stockSub"),
-      stockSelect: $("stockSelect"),
-      watermark: $("watermark"),
       marketStatus: $("marketStatus"),
+      dailyDate: $("dailyDate"),
       price: $("price"),
-      time: $("time"),
+      priceTime: $("priceTime"),
       changePct: $("changePct"),
-      change: $("change"),
-      volume: $("volume"),
-      turnover: $("turnover"),
-      range: $("range"),
-      openPrev: $("openPrev"),
-      signalTime: $("signalTime"),
+      changeText: $("changeText"),
+      topScore: $("topScore"),
+      topSignal: $("topSignal"),
+      trendState: $("trendState"),
+      trendDetail: $("trendDetail"),
+      volumeState: $("volumeState"),
+      volumeDetail: $("volumeDetail"),
       signalWord: $("signalWord"),
       signalReason: $("signalReason"),
       score: $("score"),
-      checks: $("checks"),
+      evidenceTags: $("evidenceTags"),
+      horizon: $("horizon"),
+      levels: $("levels"),
+      factors: $("factors"),
       log: $("log"),
-      source: $("source"),
-      chartHint: $("chartHint")
-    };
-
-    const params = {
-      strategyMode: $("pStrategyMode"),
-      breakout: $("pBreakout"),
-      minRise: $("pMinRise"),
-      volume: $("pVolume"),
-      rsiMax: $("pRsiMax"),
-      drawdown: $("pDrawdown"),
-      chase: $("pChase")
+      quoteSource: $("quoteSource"),
+      analysisTime: $("analysisTime"),
+      intradayHint: $("intradayHint"),
+      dailyHint: $("dailyHint")
     };
 
     const fmt = {
       price: (n) => Number.isFinite(n) ? n.toFixed(2) : "--",
       pct: (n) => Number.isFinite(n) ? `${n >= 0 ? "+" : ""}${n.toFixed(2)}%` : "--",
+      plainPct: (n) => Number.isFinite(n) ? `${n.toFixed(2)}%` : "--",
       num: (n) => Number.isFinite(n) ? n.toLocaleString("zh-CN") : "--",
       money: (n) => {
         if (!Number.isFinite(n)) return "--";
-        if (Math.abs(n) >= 1e8) return `${(n / 1e8).toFixed(2)} 亿`;
-        if (Math.abs(n) >= 1e4) return `${(n / 1e4).toFixed(2)} 万`;
+        if (Math.abs(n) >= 1e8) return `${(n / 1e8).toFixed(2)}亿`;
+        if (Math.abs(n) >= 1e4) return `${(n / 1e4).toFixed(2)}万`;
         return n.toFixed(0);
       },
-      time: (d) => d.toLocaleTimeString("zh-CN", { hour12: false })
+      date: (d) => d instanceof Date ? d.toLocaleDateString("zh-CN") : "--",
+      time: (d) => d instanceof Date ? d.toLocaleTimeString("zh-CN", { hour12: false }) : "--"
     };
 
     function isTradingWindow(now = new Date()) {
@@ -660,194 +697,6 @@
       const morning = minutes >= 9 * 60 + 30 && minutes <= 11 * 60 + 30;
       const afternoon = minutes >= 13 * 60 && minutes <= 15 * 60;
       return day >= 1 && day <= 5 && (morning || afternoon);
-    }
-
-    function fetchJsonp(url, globalName, timeout = 4500) {
-      return new Promise((resolve, reject) => {
-        const callbackName = `jsonp_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-        const sep = url.includes("?") ? "&" : "?";
-        const script = document.createElement("script");
-        const done = (fn, value) => {
-          clearTimeout(timer);
-          script.remove();
-          try { delete window[callbackName]; } catch (e) { window[callbackName] = undefined; }
-          fn(value);
-        };
-        window[callbackName] = (payload) => done(resolve, payload);
-        script.onerror = () => done(reject, new Error("行情源连接失败"));
-        script.src = `${url}${sep}${globalName}=${callbackName}`;
-        const timer = setTimeout(() => done(reject, new Error("行情源超时")), timeout);
-        document.head.appendChild(script);
-      });
-    }
-
-    function fetchSina() {
-      return new Promise((resolve, reject) => {
-        const stamp = Date.now();
-        const script = document.createElement("script");
-        const stock = state.currentStock;
-        const varName = `hq_str_${stock.symbol}`;
-        script.charset = "gbk";
-        script.src = `https://hq.sinajs.cn/list=${stock.symbol}&_=${stamp}`;
-        const timer = setTimeout(() => {
-          if (script.parentNode) {
-            script.remove();
-            reject(new Error("新浪行情超时"));
-          }
-        }, 4500);
-        script.onload = () => {
-          clearTimeout(timer);
-          const raw = window[varName] || "";
-          script.remove();
-          if (!raw) return reject(new Error("新浪行情为空"));
-          resolve(parseSina(raw));
-        };
-        script.onerror = () => {
-          clearTimeout(timer);
-          script.remove();
-          reject(new Error("新浪行情连接失败"));
-        };
-        document.head.appendChild(script);
-      });
-    }
-
-    function parseSina(raw) {
-      const parts = raw.split(",");
-      const name = parts[0] || state.currentStock.name;
-      const open = Number(parts[1]);
-      const prevClose = Number(parts[2]);
-      const price = Number(parts[3]);
-      const high = Number(parts[4]);
-      const low = Number(parts[5]);
-      const volumeShares = Number(parts[8]);
-      const turnover = Number(parts[9]);
-      const dateText = parts[30] || "";
-      const timeText = parts[31] || "";
-      const at = parseDate(`${dateText} ${timeText}`);
-      return normalizeQuote({
-        source: "新浪",
-        name,
-        price,
-        open,
-        prevClose,
-        high,
-        low,
-        volume: volumeShares,
-        turnover,
-        at
-      });
-    }
-
-    async function fetchTencent() {
-      const stamp = Date.now();
-      const stock = state.currentStock;
-      await loadScript(`https://qt.gtimg.cn/q=${stock.symbol}&_=${stamp}`);
-      const raw = window[`v_${stock.symbol}`] || "";
-      if (!raw) throw new Error("腾讯行情为空");
-      return parseTencent(raw);
-    }
-
-    function parseTencent(raw) {
-      const parts = raw.split("~");
-      return normalizeQuote({
-        source: "腾讯",
-        name: parts[1] || state.currentStock.name,
-        price: Number(parts[3]),
-        prevClose: Number(parts[4]),
-        open: Number(parts[5]),
-        volume: Number(parts[6]) * 100,
-        turnover: Number(parts[37]) * 10000,
-        high: Number(parts[33]),
-        low: Number(parts[34]),
-        at: parseCompactTime(parts[30])
-      });
-    }
-
-    function loadScript(src) {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        const timer = setTimeout(() => {
-          if (script.parentNode) {
-            script.remove();
-            reject(new Error("脚本行情源超时"));
-          }
-        }, 4500);
-        script.src = src;
-        script.onload = () => {
-          clearTimeout(timer);
-          script.remove();
-          resolve();
-        };
-        script.onerror = () => {
-          clearTimeout(timer);
-          script.remove();
-          reject(new Error("脚本行情源失败"));
-        };
-        document.head.appendChild(script);
-      });
-    }
-
-    function parseDate(text) {
-      const parsed = new Date(text.replace(/-/g, "/"));
-      return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-    }
-
-    function parseCompactTime(text) {
-      if (!text || text.length < 14) return new Date();
-      const y = text.slice(0, 4);
-      const m = text.slice(4, 6);
-      const d = text.slice(6, 8);
-      const h = text.slice(8, 10);
-      const min = text.slice(10, 12);
-      const s = text.slice(12, 14);
-      return parseDate(`${y}/${m}/${d} ${h}:${min}:${s}`);
-    }
-
-    function normalizeQuote(q) {
-      const change = q.price - q.prevClose;
-      const changePct = q.prevClose ? change / q.prevClose * 100 : 0;
-      return { ...q, change, changePct };
-    }
-
-    async function refresh() {
-      const requestId = ++state.requestId;
-      const requestStock = state.currentStock;
-      try {
-        let quote;
-        try {
-          quote = await fetchSina();
-        } catch (e) {
-          quote = await fetchTencent();
-        }
-        if (requestId !== state.requestId || requestStock.code !== state.currentStock.code) return;
-        state.errors = 0;
-        state.source = quote.source;
-        addTick(quote);
-        render();
-      } catch (error) {
-        if (requestId !== state.requestId || requestStock.code !== state.currentStock.code) return;
-        state.errors += 1;
-        setConnection("行情连接失败", false);
-        addLog(`行情读取失败：${error.message}`);
-        renderChart();
-      }
-    }
-
-    function addTick(quote) {
-      const now = new Date();
-      const last = state.ticks[state.ticks.length - 1];
-      const volumeDelta = last && Number.isFinite(quote.volume)
-        ? Math.max(0, quote.volume - last.volume)
-        : 0;
-      const tick = { ...quote, seenAt: now, volumeDelta };
-      state.quote = quote;
-      state.lastFetchAt = now;
-      const isDuplicate = last && Math.abs(last.price - quote.price) < 0.0001 && last.volume === quote.volume && fmt.time(last.at) === fmt.time(quote.at);
-      if (!isDuplicate || state.ticks.length === 0) {
-        state.ticks.push(tick);
-        if (state.ticks.length > MAX_POINTS) state.ticks.shift();
-        addLog(`${state.currentStock.name} ${fmt.price(quote.price)} · ${fmt.pct(quote.changePct)} · ${quote.source}`);
-      }
     }
 
     function setConnection(text, live) {
@@ -863,84 +712,255 @@
       while (els.log.children.length > 18) els.log.lastChild.remove();
     }
 
-    function resetDisplay() {
-      els.price.textContent = "--";
-      els.price.className = "value";
-      els.time.textContent = "等待行情";
-      els.changePct.textContent = "--";
-      els.changePct.className = "value";
-      els.change.textContent = "--";
-      els.volume.textContent = "--";
-      els.turnover.textContent = "成交额 --";
-      els.range.textContent = "--";
-      els.openPrev.textContent = "开盘 -- · 昨收 --";
-      els.signalTime.textContent = "--";
-      els.signalWord.textContent = "观望";
-      els.signalWord.className = "signal-word neutral";
-      els.signalReason.textContent = "等待足够的分时数据。";
-      els.score.textContent = "0";
-      els.score.style.setProperty("--score", 0);
-      els.checks.innerHTML = "";
-      els.source.textContent = "行情源 --";
-      renderChart();
+    function loadScript(src, options = {}) {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        if (options.charset) script.charset = options.charset;
+        const timer = setTimeout(() => {
+          script.remove();
+          reject(new Error(options.timeoutText || "脚本加载超时"));
+        }, options.timeout || 5500);
+        script.onload = () => {
+          clearTimeout(timer);
+          script.remove();
+          resolve();
+        };
+        script.onerror = () => {
+          clearTimeout(timer);
+          script.remove();
+          reject(new Error(options.errorText || "脚本加载失败"));
+        };
+        script.src = src;
+        document.head.appendChild(script);
+      });
     }
 
-    function updateStockHeader() {
-      const stock = state.currentStock;
-      document.title = `${stock.name} ${stock.code} 实时量化看板`;
-      els.stockName.textContent = stock.name;
-      els.stockSub.textContent = `A 股多股票实时量化看板 · 股票池 3 只 · ${stock.code}.${stock.market} · v7`;
-      els.watermark.textContent = stock.code;
+    function jsonp(url, callbackParam = "cb", timeout = 8000) {
+      return new Promise((resolve, reject) => {
+        const callbackName = `jsonp_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        const sep = url.includes("?") ? "&" : "?";
+        const script = document.createElement("script");
+        const done = (fn, value) => {
+          clearTimeout(timer);
+          script.remove();
+          try { delete window[callbackName]; } catch (e) { window[callbackName] = undefined; }
+          fn(value);
+        };
+        window[callbackName] = (payload) => done(resolve, payload);
+        script.onerror = () => done(reject, new Error("数据源连接失败"));
+        script.src = `${url}${sep}${callbackParam}=${callbackName}`;
+        const timer = setTimeout(() => done(reject, new Error("数据源响应超时")), timeout);
+        document.head.appendChild(script);
+      });
     }
 
-    function switchStock(code) {
-      const next = STOCKS[code];
-      if (!next || next.code === state.currentStock.code) return;
-      state.currentStock = next;
-      state.ticks = [];
-      state.lastVolume = null;
-      state.lastFetchAt = null;
-      state.quote = null;
-      state.source = "--";
-      state.errors = 0;
-      state.requestId += 1;
-      els.log.innerHTML = "";
-      setConnection("切换中", false);
-      updateStockHeader();
-      resetDisplay();
-      addLog(`已切换到 ${next.name} ${next.code}.${next.market}，正在连接行情源。`);
-      refresh();
+    function parseDate(text) {
+      const parsed = new Date(String(text).replace(/-/g, "/"));
+      return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
     }
 
-    function render() {
-      const q = state.quote;
-      if (!q) return;
-      const live = isTradingWindow();
-      setConnection(live ? "交易时段监控中" : "非交易时段", live);
-      els.price.textContent = fmt.price(q.price);
-      els.price.className = `value ${q.change > 0 ? "up" : q.change < 0 ? "down" : ""}`;
-      els.time.textContent = `行情时间 ${q.at.toLocaleString("zh-CN", { hour12: false })}`;
-      els.changePct.textContent = fmt.pct(q.changePct);
-      els.changePct.className = `value ${q.change > 0 ? "up" : q.change < 0 ? "down" : ""}`;
-      els.change.textContent = `涨跌 ${q.change >= 0 ? "+" : ""}${fmt.price(q.change)}`;
-      els.volume.textContent = fmt.money(q.volume);
-      els.turnover.textContent = `成交额 ${fmt.money(q.turnover)}`;
-      els.range.textContent = `${fmt.price(q.low)} - ${fmt.price(q.high)}`;
-      els.openPrev.textContent = `开盘 ${fmt.price(q.open)} · 昨收 ${fmt.price(q.prevClose)}`;
-      els.source.textContent = `行情源 ${state.source}`;
-      renderSignal();
-      renderChart();
+    function parseCompactTime(text) {
+      if (!text || text.length < 14) return new Date();
+      return parseDate(`${text.slice(0,4)}/${text.slice(4,6)}/${text.slice(6,8)} ${text.slice(8,10)}:${text.slice(10,12)}:${text.slice(12,14)}`);
     }
 
-    function dynamicAverage(points) {
-      const weighted = points.reduce((sum, p) => sum + p.price * Math.max(1, p.volumeDelta), 0);
-      const vol = points.reduce((sum, p) => sum + Math.max(1, p.volumeDelta), 0);
-      return vol ? weighted / vol : points.reduce((sum, p) => sum + p.price, 0) / Math.max(1, points.length);
+    async function fetchSinaQuote() {
+      const varName = `hq_str_${STOCK.sina}`;
+      const stamp = Date.now();
+      await loadScript(`https://hq.sinajs.cn/list=${STOCK.sina}&_=${stamp}`, {
+        charset: "gbk",
+        timeoutText: "新浪行情超时",
+        errorText: "新浪行情连接失败"
+      });
+      const raw = window[varName] || "";
+      if (!raw) throw new Error("新浪行情为空");
+      const parts = raw.split(",");
+      const open = Number(parts[1]);
+      const prevClose = Number(parts[2]);
+      const price = Number(parts[3]);
+      const high = Number(parts[4]);
+      const low = Number(parts[5]);
+      const volume = Number(parts[8]);
+      const turnover = Number(parts[9]);
+      const at = parseDate(`${parts[30] || ""} ${parts[31] || ""}`);
+      if (!Number.isFinite(price) || price <= 0) throw new Error("新浪行情无有效价格");
+      return normalizeQuote({ source: "新浪", price, open, prevClose, high, low, volume, turnover, at });
     }
 
-    function movingAverage(points, size) {
-      const slice = points.slice(-size);
-      return slice.reduce((sum, p) => sum + p.price, 0) / Math.max(1, slice.length);
+    async function fetchTencentQuote() {
+      const stamp = Date.now();
+      await loadScript(`https://qt.gtimg.cn/q=${STOCK.tencent}&_=${stamp}`, {
+        charset: "gbk",
+        timeoutText: "腾讯行情超时",
+        errorText: "腾讯行情连接失败"
+      });
+      const raw = window[`v_${STOCK.tencent}`] || "";
+      if (!raw) throw new Error("腾讯行情为空");
+      const parts = raw.split("~");
+      const price = Number(parts[3]);
+      const prevClose = Number(parts[4]);
+      const open = Number(parts[5]);
+      const volume = Number(parts[6]) * 100;
+      const high = Number(parts[33]);
+      const low = Number(parts[34]);
+      const turnover = Number(parts[37]) * 10000;
+      const at = parseCompactTime(parts[30]);
+      if (!Number.isFinite(price) || price <= 0) throw new Error("腾讯行情无有效价格");
+      return normalizeQuote({ source: "腾讯", price, open, prevClose, high, low, volume, turnover, at });
+    }
+
+    function normalizeQuote(q) {
+      const change = q.price - q.prevClose;
+      const changePct = q.prevClose ? change / q.prevClose * 100 : 0;
+      return { ...q, change, changePct };
+    }
+
+    async function refreshQuote() {
+      if (state.quoteLoading) return;
+      state.quoteLoading = true;
+      const requestId = ++state.requestId;
+      try {
+        let quote;
+        try {
+          quote = await fetchTencentQuote();
+        } catch (e) {
+          quote = await fetchSinaQuote();
+        }
+        if (requestId !== state.requestId) return;
+        state.quote = quote;
+        state.quoteSource = quote.source;
+        state.lastFetchAt = new Date();
+        addTick(quote);
+        renderAll();
+      } catch (error) {
+        setConnection("行情连接失败", false);
+        addLog(`分时读取失败：${error.message}`);
+        renderIntradayChart();
+      } finally {
+        state.quoteLoading = false;
+      }
+    }
+
+    function addTick(quote) {
+      const last = state.ticks[state.ticks.length - 1];
+      const volumeDelta = last && Number.isFinite(quote.volume)
+        ? Math.max(0, quote.volume - last.volume)
+        : 0;
+      const tick = { ...quote, seenAt: new Date(), volumeDelta };
+      const duplicate = last
+        && Math.abs(last.price - quote.price) < 0.0001
+        && last.volume === quote.volume
+        && fmt.time(last.at) === fmt.time(quote.at);
+      if (!duplicate || state.ticks.length === 0) {
+        state.ticks.push(tick);
+        if (state.ticks.length > MAX_INTRADAY_POINTS) state.ticks.shift();
+        addLog(`分时 ${fmt.price(quote.price)} · ${fmt.pct(quote.changePct)} · ${quote.source}`);
+      }
+    }
+
+    async function refreshDaily() {
+      const end = "20500101";
+      const beg = "20200101";
+      const fields1 = "f1,f2,f3,f4,f5,f6";
+      const fields2 = "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61";
+      try {
+        const daily = await fetchDailyData({ beg, end, fields1, fields2 });
+        if (!daily.length) throw new Error("日K数据为空");
+        state.daily = daily;
+        state.analysis = analyzeDaily(daily);
+        localStorage.setItem("yd_daily_cache_v8", JSON.stringify({ at: Date.now(), daily }));
+        addLog(`日K已更新：${daily[daily.length - 1].date}`);
+        renderAll();
+      } catch (error) {
+        const cached = readDailyCache();
+        if (cached.length) {
+          state.daily = cached;
+          state.analysis = analyzeDaily(cached);
+          addLog(`日K使用本地缓存：${cached[cached.length - 1].date}`);
+          renderAll();
+        } else {
+          addLog(`日K读取失败：${error.message}`);
+          renderAll();
+        }
+      }
+    }
+
+    async function fetchDailyData({ beg, end, fields1, fields2 }) {
+      const eastmoneyUrl = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${STOCK.eastmoneySecid}&ut=fa5fd1943c7b386f172d6893dbfba10b&fields1=${fields1}&fields2=${fields2}&klt=101&fqt=1&beg=${beg}&end=${end}&lmt=420`;
+      try {
+        const payload = await jsonp(eastmoneyUrl, "cb", 9000);
+        const daily = parseEastmoneyDaily(payload);
+        if (daily.length) return daily;
+      } catch (error) {
+        addLog(`东方财富日K失败，切换腾讯：${error.message}`);
+      }
+      return fetchTencentDaily();
+    }
+
+    async function fetchTencentDaily() {
+      const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${STOCK.tencent},day,,,420,qfq`;
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error(`腾讯日K HTTP ${response.status}`);
+      const payload = await response.json();
+      return parseTencentDaily(payload);
+    }
+
+    function readDailyCache() {
+      try {
+        const cached = JSON.parse(localStorage.getItem("yd_daily_cache_v8") || "{}");
+        return Array.isArray(cached.daily) ? cached.daily : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function parseEastmoneyDaily(payload) {
+      const rows = payload && payload.data && Array.isArray(payload.data.klines) ? payload.data.klines : [];
+      return rows.map((line) => {
+        const parts = String(line).split(",");
+        return {
+          date: parts[0],
+          open: Number(parts[1]),
+          close: Number(parts[2]),
+          high: Number(parts[3]),
+          low: Number(parts[4]),
+          volume: Number(parts[5]),
+          amount: Number(parts[6]),
+          amplitude: Number(parts[7]),
+          changePct: Number(parts[8]),
+          change: Number(parts[9]),
+          turnover: Number(parts[10])
+        };
+      }).filter(row => row.date && [row.open, row.close, row.high, row.low].every(Number.isFinite));
+    }
+
+    function parseTencentDaily(payload) {
+      const node = payload && payload.data && payload.data[STOCK.tencent];
+      const rows = node && (node.qfqday || node.day);
+      if (!Array.isArray(rows)) return [];
+      return rows.map((parts, index) => {
+        const open = Number(parts[1]);
+        const close = Number(parts[2]);
+        const high = Number(parts[3]);
+        const low = Number(parts[4]);
+        const volume = Number(parts[5]);
+        const prevClose = index > 0 ? Number(rows[index - 1][2]) : open;
+        const change = close - prevClose;
+        const changePct = prevClose ? change / prevClose * 100 : 0;
+        return {
+          date: parts[0],
+          open,
+          close,
+          high,
+          low,
+          volume,
+          amount: volume * close * 100,
+          amplitude: prevClose ? (high - low) / prevClose * 100 : 0,
+          changePct,
+          change,
+          turnover: NaN
+        };
+      }).filter(row => row.date && [row.open, row.close, row.high, row.low].every(Number.isFinite));
     }
 
     function clamp(value, min, max) {
@@ -952,10 +972,24 @@
       return clamp((value - low) / Math.max(0.0001, high - low) * 100, 0, 100);
     }
 
-    function ema(values, period) {
-      if (!values.length) return NaN;
-      const k = 2 / (period + 1);
-      return values.reduce((prev, value, index) => index ? value * k + prev * (1 - k) : value, values[0]);
+    function average(values) {
+      const clean = values.filter(Number.isFinite);
+      return clean.length ? clean.reduce((sum, value) => sum + value, 0) / clean.length : NaN;
+    }
+
+    function std(values) {
+      const mean = average(values);
+      if (!Number.isFinite(mean)) return NaN;
+      return Math.sqrt(average(values.map(value => Math.pow(value - mean, 2))));
+    }
+
+    function sma(values, period, endIndex = values.length - 1) {
+      const start = Math.max(0, endIndex - period + 1);
+      return average(values.slice(start, endIndex + 1));
+    }
+
+    function smaSeries(values, period) {
+      return values.map((_, index) => sma(values, period, index));
     }
 
     function emaSeries(values, period) {
@@ -967,20 +1001,28 @@
       return out;
     }
 
-    function standardDeviation(values) {
-      if (!values.length) return 0;
-      const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-      const variance = values.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / values.length;
-      return Math.sqrt(variance);
+    function calcMacd(closes) {
+      const ema12 = emaSeries(closes, 12);
+      const ema26 = emaSeries(closes, 26);
+      const difSeries = closes.map((_, index) => ema12[index] - ema26[index]);
+      const deaSeries = emaSeries(difSeries, 9);
+      const index = closes.length - 1;
+      const prev = Math.max(0, index - 1);
+      return {
+        dif: difSeries[index],
+        dea: deaSeries[index],
+        hist: (difSeries[index] - deaSeries[index]) * 2,
+        prevHist: (difSeries[prev] - deaSeries[prev]) * 2
+      };
     }
 
-    function calcRsi(points, period = 14) {
-      if (points.length < 3) return 50;
-      const slice = points.slice(-(period + 1));
+    function calcRsi(closes, period = 14) {
+      if (closes.length < period + 1) return 50;
+      const slice = closes.slice(-(period + 1));
       let gains = 0;
       let losses = 0;
       for (let i = 1; i < slice.length; i++) {
-        const diff = slice[i].price - slice[i - 1].price;
+        const diff = slice[i] - slice[i - 1];
         if (diff >= 0) gains += diff;
         else losses -= diff;
       }
@@ -989,396 +1031,492 @@
       return 100 - 100 / (1 + rs);
     }
 
-    function calcMacd(points) {
-      const prices = points.map(p => p.price);
-      const fastSeries = emaSeries(prices, 12);
-      const slowSeries = emaSeries(prices, 26);
-      const difSeries = prices.map((_, index) => fastSeries[index] - slowSeries[index]);
-      const deaSeries = emaSeries(difSeries, 9);
-      const dif = difSeries[difSeries.length - 1] || 0;
-      const dea = deaSeries[deaSeries.length - 1] || 0;
-      const hist = (dif - dea) * 2;
-      const prevHist = difSeries.length > 1
-        ? ((difSeries[difSeries.length - 2] || 0) - (deaSeries[deaSeries.length - 2] || 0)) * 2
-        : hist;
-      return { dif, dea, hist, prevHist };
+    function calcKdj(daily, period = 9) {
+      let k = 50;
+      let d = 50;
+      daily.forEach((row, index) => {
+        const slice = daily.slice(Math.max(0, index - period + 1), index + 1);
+        const low = Math.min(...slice.map(item => item.low));
+        const high = Math.max(...slice.map(item => item.high));
+        const rsv = high === low ? 50 : (row.close - low) / (high - low) * 100;
+        k = k * 2 / 3 + rsv / 3;
+        d = d * 2 / 3 + k / 3;
+      });
+      return { k, d, j: 3 * k - 2 * d };
     }
 
-    function calcIndicators(points, q) {
-      const prices = points.map(p => p.price);
-      const latest = points[points.length - 1] || q;
-      const avg = dynamicAverage(points);
-      const maFast = movingAverage(points, 5);
-      const maMid = movingAverage(points, 13);
-      const maSlow = movingAverage(points, 34);
-      const emaFast = ema(prices, 8);
-      const emaSlow = ema(prices, 21);
-      const macd = calcMacd(points);
-      const rsi = calcRsi(points, 14);
-      const bbSlice = prices.slice(-20);
-      const bbMid = bbSlice.reduce((sum, value) => sum + value, 0) / Math.max(1, bbSlice.length);
-      const bbStd = standardDeviation(bbSlice);
+    function calcAtr(daily, period = 14) {
+      if (daily.length < 2) return NaN;
+      const trs = [];
+      for (let i = 1; i < daily.length; i++) {
+        const prevClose = daily[i - 1].close;
+        trs.push(Math.max(
+          daily[i].high - daily[i].low,
+          Math.abs(daily[i].high - prevClose),
+          Math.abs(daily[i].low - prevClose)
+        ));
+      }
+      return average(trs.slice(-period));
+    }
+
+    function pctChange(current, previous) {
+      return previous ? (current / previous - 1) * 100 : NaN;
+    }
+
+    function nearestBelow(price, candidates) {
+      return candidates.filter(item => Number.isFinite(item.value) && item.value < price)
+        .sort((a, b) => b.value - a.value)[0] || null;
+    }
+
+    function nearestAbove(price, candidates) {
+      return candidates.filter(item => Number.isFinite(item.value) && item.value > price)
+        .sort((a, b) => a.value - b.value)[0] || null;
+    }
+
+    function analyzeDaily(daily) {
+      const closes = daily.map(row => row.close);
+      const highs = daily.map(row => row.high);
+      const lows = daily.map(row => row.low);
+      const volumes = daily.map(row => row.volume);
+      const latest = daily[daily.length - 1];
+      const prev = daily[daily.length - 2] || latest;
+      const ma5 = sma(closes, 5);
+      const ma10 = sma(closes, 10);
+      const ma20 = sma(closes, 20);
+      const ma60 = sma(closes, 60);
+      const ma120 = sma(closes, 120);
+      const ma20Prev = sma(closes, 20, Math.max(0, closes.length - 6));
+      const ma60Prev = sma(closes, 60, Math.max(0, closes.length - 11));
+      const ema20 = emaSeries(closes, 20).at(-1);
+      const ema60 = emaSeries(closes, 60).at(-1);
+      const macd = calcMacd(closes);
+      const rsi = calcRsi(closes, 14);
+      const kdj = calcKdj(daily, 9);
+      const atr = calcAtr(daily, 14);
+      const atrPct = latest.close ? atr / latest.close * 100 : NaN;
+      const volMa5 = sma(volumes, 5);
+      const volMa20 = sma(volumes, 20);
+      const volumeRatio = volMa20 ? latest.volume / volMa20 : NaN;
+      const amountMa20 = sma(daily.map(row => row.amount), 20);
+      const high20 = Math.max(...highs.slice(-20));
+      const low20 = Math.min(...lows.slice(-20));
+      const high60 = Math.max(...highs.slice(-60));
+      const low60 = Math.min(...lows.slice(-60));
+      const high120 = Math.max(...highs.slice(-120));
+      const low120 = Math.min(...lows.slice(-120));
+      const drawdown60 = high60 ? (latest.close / high60 - 1) * 100 : NaN;
+      const pos120 = high120 === low120 ? 50 : (latest.close - low120) / (high120 - low120) * 100;
+      const closeToMa20 = pctChange(latest.close, ma20);
+      const closeToMa60 = pctChange(latest.close, ma60);
+      const ma20Slope = pctChange(ma20, ma20Prev);
+      const ma60Slope = pctChange(ma60, ma60Prev);
+      const bbMid = ma20;
+      const bbStd = std(closes.slice(-20));
       const bbUpper = bbMid + bbStd * 2;
       const bbLower = bbMid - bbStd * 2;
-      const bbPos = (q.price - bbLower) / Math.max(0.0001, bbUpper - bbLower) * 100;
-      const recent = points.slice(-20);
-      const prevRecent = recent.slice(0, -1);
-      const avgVol = prevRecent.reduce((sum, item) => sum + item.volumeDelta, 0) / Math.max(1, prevRecent.length);
-      const latestVol = latest.volumeDelta || 0;
-      const volumePulse = latestVol / Math.max(1, avgVol);
-      const highSinceOpen = Math.max(q.high || q.price, ...prices);
-      const lowSinceOpen = Math.min(q.low || q.price, ...prices);
-      const priorHigh = points.length > 1 ? Math.max(...points.slice(0, -1).map(p => p.price), q.open || q.price) : q.open || q.price;
-      const drawdown = highSinceOpen ? (highSinceOpen - q.price) / highSinceOpen * 100 : 0;
-      const intradayRange = q.prevClose ? (q.high - q.low) / q.prevClose * 100 : 0;
-      const avgBias = avg ? (q.price / avg - 1) * 100 : 0;
-      const trendSlope = maMid ? (maFast / maMid - 1) * 100 : 0;
-      const openStrength = q.open ? (q.price / q.open - 1) * 100 : 0;
-      const pullbackToAvg = Math.abs(avgBias);
-      const volumeDryUp = avgVol > 0 ? 1 / Math.max(0.2, volumePulse) : 0;
-      const maAlignment = maFast >= maMid && maMid >= maSlow;
-      const breakoutPct = priorHigh ? (q.price / priorHigh - 1) * 100 : 0;
-      return {
-        avg,
-        maFast,
-        maMid,
-        maSlow,
-        emaFast,
-        emaSlow,
-        macd,
-        rsi,
-        bbPos,
-        volumePulse,
-        drawdown,
-        intradayRange,
-        avgBias,
-        trendSlope,
-        openStrength,
-        pullbackToAvg,
-        volumeDryUp,
-        maAlignment,
-        breakoutPct,
-        priorHigh,
-        highSinceOpen,
-        lowSinceOpen
-      };
-    }
+      const bbPos = (latest.close - bbLower) / Math.max(0.0001, bbUpper - bbLower) * 100;
+      const dayChange = pctChange(latest.close, prev.close);
 
-    function factorMark(score) {
-      if (score >= 70) return "ok";
-      if (score >= 45) return "warn";
-      return "bad";
-    }
+      const trendScore = Math.round(
+        (latest.close >= ma20 ? 22 : 6)
+        + (latest.close >= ma60 ? 20 : 5)
+        + (ma20 >= ma60 ? 18 : 6)
+        + (ma60 >= ma120 ? 14 : 6)
+        + scoreRange(ma20Slope, -2.5, 3.5) * 0.16
+        + scoreRange(ma60Slope, -2.5, 3.5) * 0.10
+      );
 
-    // STRATEGY_CONFIG_START
-const strategyProfiles = {
-      "balanced": {
-            "id": "balanced",
-            "label": "综合多因子",
-            "note": "综合趋势、动量、量能、价格位置与风险过滤。",
-            "weights": {
-                  "trend": 0.24,
-                  "momentum": 0.2,
-                  "volume": 0.18,
-                  "position": 0.18,
-                  "risk": 0.2
-            },
-            "trigger": 82,
-            "near": 66,
-            "rule": "balanced"
-      },
-      "strictTrend": {
-            "id": "strictTrend",
-            "label": "AI 严进趋势",
-            "note": "借鉴 AI 分析工具的严进严出思路，优先要求趋势、动量、风控同时过关。",
-            "weights": {
-                  "trend": 0.3,
-                  "momentum": 0.24,
-                  "volume": 0.14,
-                  "position": 0.12,
-                  "risk": 0.2
-            },
-            "trigger": 86,
-            "near": 72,
-            "rule": "strictTrend"
-      },
-      "volumeBreakout": {
-            "id": "volumeBreakout",
-            "label": "放量突破",
-            "note": "适合观察突破日内高位或动态均价后的资金确认。",
-            "weights": {
-                  "trend": 0.2,
-                  "momentum": 0.18,
-                  "volume": 0.3,
-                  "position": 0.18,
-                  "risk": 0.14
-            },
-            "trigger": 82,
-            "near": 68,
-            "rule": "volumeBreakout"
-      },
-      "pullback": {
-            "id": "pullback",
-            "label": "缩量回踩",
-            "note": "适合观察趋势未破、靠近均价且成交萎缩后的低吸条件。",
-            "weights": {
-                  "trend": 0.24,
-                  "momentum": 0.12,
-                  "volume": 0.16,
-                  "position": 0.28,
-                  "risk": 0.2
-            },
-            "trigger": 78,
-            "near": 64,
-            "rule": "pullback"
-      },
-      "maAlignment": {
-            "id": "maAlignment",
-            "label": "多头排列",
-            "note": "适合观察短中长期均线顺序和趋势延续。",
-            "weights": {
-                  "trend": 0.36,
-                  "momentum": 0.18,
-                  "volume": 0.12,
-                  "position": 0.14,
-                  "risk": 0.2
-            },
-            "trigger": 84,
-            "near": 68,
-            "rule": "maAlignment"
-      },
-      "hotMomentum": {
-            "id": "hotMomentum",
-            "label": "热点强势",
-            "note": "借鉴 AI 日报里的热点强势股筛选，强调开盘强度、动量和成交额确认。",
-            "weights": {
-                  "trend": 0.22,
-                  "momentum": 0.3,
-                  "volume": 0.22,
-                  "position": 0.1,
-                  "risk": 0.16
-            },
-            "trigger": 84,
-            "near": 70,
-            "rule": "hotMomentum"
-      },
-      "riskFirst": {
-            "id": "riskFirst",
-            "label": "风控优先",
-            "note": "先过滤追高、回撤和过热，只在风险舒适时提高信号等级。",
-            "weights": {
-                  "trend": 0.18,
-                  "momentum": 0.14,
-                  "volume": 0.14,
-                  "position": 0.18,
-                  "risk": 0.36
-            },
-            "trigger": 80,
-            "near": 66,
-            "rule": "riskFirst"
-      }
-};
-        // STRATEGY_CONFIG_END
+      const momentumScore = Math.round(
+        (macd.dif >= macd.dea ? 24 : 8)
+        + (macd.hist >= macd.prevHist ? 18 : 6)
+        + ((rsi >= 45 && rsi <= 68) ? 24 : rsi > 78 ? 5 : 12)
+        + ((kdj.k >= kdj.d && kdj.j <= 95) ? 18 : kdj.j > 105 ? 5 : 10)
+        + scoreRange(dayChange, -3, 5) * 0.16
+      );
 
-    function strategyBonus(mode, ind, q, p) {
-      if (mode === "strictTrend") {
-        const ok = ind.maAlignment && q.price >= ind.maFast && ind.rsi >= 50 && ind.rsi <= p.rsiMax && q.changePct >= p.minRise;
-        return {
-          bonus: ok ? 8 : -6,
-          label: ok ? "严进条件满足" : "严进条件未齐",
-          detail: `多头 ${ind.maAlignment ? "是" : "否"} · RSI ${ind.rsi.toFixed(0)} · 涨幅 ${fmt.pct(q.changePct)}`
-        };
-      }
-      if (mode === "volumeBreakout") {
-        const breakout = ind.breakoutPct >= p.breakout || ind.avgBias >= p.breakout;
-        const volume = ind.volumePulse >= p.volume;
-        return {
-          bonus: breakout && volume ? 10 : breakout || volume ? 2 : -8,
-          label: breakout && volume ? "放量突破确认" : "突破/量能待确认",
-          detail: `突破 ${fmt.pct(ind.breakoutPct)} · 量能 ${ind.volumePulse.toFixed(1)}x`
-        };
-      }
-      if (mode === "pullback") {
-        const nearAvg = ind.pullbackToAvg <= Math.max(0.45, p.breakout + 0.25);
-        const trendHold = q.price >= ind.maMid && ind.emaFast >= ind.emaSlow;
-        const dry = ind.volumePulse > 0 && ind.volumePulse <= Math.max(1.15, p.volume - 0.25);
-        return {
-          bonus: nearAvg && trendHold && dry ? 9 : nearAvg && trendHold ? 2 : -5,
-          label: nearAvg && trendHold && dry ? "缩量回踩成立" : "回踩条件观察",
-          detail: `均价距离 ${fmt.pct(ind.pullbackToAvg)} · 量能 ${ind.volumePulse.toFixed(1)}x`
-        };
-      }
-      if (mode === "maAlignment") {
-        return {
-          bonus: ind.maAlignment ? 8 : -4,
-          label: ind.maAlignment ? "多头排列成立" : "均线排列未完成",
-          detail: `MA5 ${fmt.price(ind.maFast)} / MA13 ${fmt.price(ind.maMid)} / MA34 ${fmt.price(ind.maSlow)}`
-        };
-      }
-      if (mode === "hotMomentum") {
-        const strong = ind.openStrength >= 1.2 && ind.rsi >= 50 && ind.rsi <= p.rsiMax && q.changePct >= Math.max(1.5, p.minRise);
-        const active = ind.volumePulse >= Math.max(1.1, p.volume - 0.2) || q.turnover >= 1e9;
-        return {
-          bonus: strong && active ? 10 : strong || active ? 3 : -6,
-          label: strong && active ? "热点强势确认" : "热点强度观察",
-          detail: `开盘强度 ${fmt.pct(ind.openStrength)} · 成交额 ${fmt.money(q.turnover)} · RSI ${ind.rsi.toFixed(0)}`
-        };
-      }
-      if (mode === "riskFirst") {
-        const cool = q.changePct <= p.chase && ind.drawdown <= p.drawdown && ind.rsi <= p.rsiMax && ind.intradayRange <= 7.5;
-        const acceptable = ind.drawdown <= p.drawdown + 0.8 && ind.rsi <= p.rsiMax + 4;
-        return {
-          bonus: cool ? 8 : acceptable ? 0 : -10,
-          label: cool ? "风险舒适" : acceptable ? "风险可接受" : "风险偏高",
-          detail: `回撤 ${fmt.pct(ind.drawdown)} · 振幅 ${fmt.pct(ind.intradayRange)} · RSI ${ind.rsi.toFixed(0)}`
-        };
-      }
-      return {
-        bonus: 0,
-        label: "综合模型",
-        detail: strategyProfiles.balanced.note
-      };
-    }
+      const volumeScore = Math.round(
+        ((latest.close >= prev.close && volumeRatio >= 1.05) ? 34 : 14)
+        + ((latest.close < prev.close && volumeRatio <= 1.25) ? 25 : 12)
+        + scoreRange(volumeRatio, 0.65, 2.2) * 0.24
+        + scoreRange(amountMa20, 5e7, 8e8) * 0.17
+      );
 
-    function renderSignal() {
-      const q = state.quote;
-      const points = state.ticks;
-      const p = readParams();
-      const ind = calcIndicators(points, q);
-      const profile = strategyProfiles[p.strategyMode] || strategyProfiles.balanced;
-      const bonus = strategyBonus(p.strategyMode, ind, q, p);
-      const minDataScore = scoreRange(points.length, 4, 28);
+      const positionScore = Math.round(
+        ((pos120 >= 35 && pos120 <= 78) ? 34 : pos120 > 88 ? 9 : 20)
+        + ((bbPos >= 35 && bbPos <= 82) ? 24 : bbPos > 92 ? 8 : 16)
+        + scoreRange(closeToMa20, -4.5, 7) * 0.23
+        + scoreRange(drawdown60, -22, -2) * 0.19
+      );
+
+      const riskScore = Math.round(
+        (atrPct <= 4.8 ? 28 : atrPct <= 7 ? 16 : 6)
+        + (Math.abs(closeToMa20) <= 8 ? 24 : 8)
+        + (rsi <= 75 ? 22 : 7)
+        + (drawdown60 >= -18 ? 16 : 7)
+        + (latest.close >= ma60 ? 10 : 3)
+      );
+
+      const rawScore = trendScore * 0.30 + momentumScore * 0.20 + volumeScore * 0.16 + positionScore * 0.16 + riskScore * 0.18;
+      const riskBlock = latest.close < ma60 && ma20 < ma60 || rsi > 82 || atrPct > 8.5;
+      const score = Math.round(clamp(rawScore, 0, riskBlock ? 72 : 100));
+      const signal = score >= 82 ? "积极跟踪" : score >= 68 ? "等待确认" : score >= 52 ? "区间观察" : "风险防守";
+      const signalClass = score >= 82 ? "up" : score >= 68 ? "neutral" : score >= 52 ? "blue" : "down";
+
+      const supports = [
+        { label: "MA20", value: ma20 },
+        { label: "MA60", value: ma60 },
+        { label: "20日低点", value: low20 },
+        { label: "60日低点", value: low60 },
+        { label: "BOLL下轨", value: bbLower },
+        { label: "ATR防守", value: latest.close - atr }
+      ];
+      const pressures = [
+        { label: "20日高点", value: high20 },
+        { label: "60日高点", value: high60 },
+        { label: "120日高点", value: high120 },
+        { label: "BOLL上轨", value: bbUpper },
+        { label: "ATR压力", value: latest.close + atr }
+      ];
+      const support1 = nearestBelow(latest.close, supports) || { label: "最近低点", value: low20 };
+      const support2 = nearestBelow(support1.value, supports) || { label: "60日低点", value: low60 };
+      const pressure1 = nearestAbove(latest.close, pressures) || { label: "最近高点", value: high20 };
+      const pressure2 = nearestAbove(pressure1.value, pressures) || { label: "120日高点", value: high120 };
+
+      const buyPullbackLow = support1.value;
+      const buyPullbackHigh = Math.min(latest.close, support1.value + atr * 0.45);
+      const breakoutLine = pressure1.value;
+      const stopLine = Math.min(support1.value, ma60 || support1.value) - atr * 0.25;
+      const sellStrength = rsi > 74 ? "RSI过热后跌破5日线" : "放量冲高未站稳压力位";
+      const trendSell = `收盘跌破 ${fmt.price(Math.max(ma60 || 0, support1.value))} 且 MACD继续走弱`;
+
+      const tags = [
+        tagFor(latest.close >= ma20, "站上MA20", "跌破MA20"),
+        tagFor(ma20 >= ma60, "MA20强于MA60", "MA20弱于MA60"),
+        tagFor(macd.hist >= macd.prevHist, "MACD改善", "MACD走弱"),
+        tagFor(volumeRatio >= 1.05, "量能放大", "量能普通"),
+        tagFor(rsi <= 75, "未明显过热", "RSI过热")
+      ];
+
       const factors = [
         {
-          name: "趋势确认",
-          detail: `MA5 ${fmt.price(ind.maFast)} / MA13 ${fmt.price(ind.maMid)} / EMA8-21 ${fmt.pct((ind.emaFast / ind.emaSlow - 1) * 100)}`,
-          score: Math.round((scoreRange(ind.trendSlope, -0.15, 0.55) * 0.45) + (scoreRange((ind.emaFast / ind.emaSlow - 1) * 100, -0.15, 0.45) * 0.35) + (q.price >= ind.maFast ? 20 : 0)),
-          weight: profile.weights.trend
+          name: "趋势因子",
+          detail: `收盘/MA20 ${fmt.pct(closeToMa20)} · 收盘/MA60 ${fmt.pct(closeToMa60)} · MA20斜率 ${fmt.pct(ma20Slope)}`,
+          score: clamp(trendScore, 0, 100)
         },
         {
-          name: "动量确认",
-          detail: `MACD柱 ${ind.macd.hist.toFixed(3)} · RSI ${ind.rsi.toFixed(0)} · 较开盘 ${fmt.pct(ind.openStrength)}`,
-          score: Math.round((scoreRange(ind.macd.hist - ind.macd.prevHist, -0.02, 0.06) * 0.35) + (scoreRange(ind.openStrength, -0.6, 1.8) * 0.35) + ((ind.rsi >= 45 && ind.rsi <= p.rsiMax) ? 30 : ind.rsi > p.rsiMax ? 8 : 14)),
-          weight: profile.weights.momentum
+          name: "动量因子",
+          detail: `MACD柱 ${macd.hist.toFixed(3)} · RSI14 ${rsi.toFixed(0)} · KDJ-J ${kdj.j.toFixed(0)}`,
+          score: clamp(momentumScore, 0, 100)
         },
         {
-          name: "成交量确认",
-          detail: `最新量能 ${ind.volumePulse.toFixed(1)}x · 阈值 ${p.volume.toFixed(1)}x`,
-          score: Math.round(scoreRange(ind.volumePulse, 0.75, Math.max(p.volume, 1.1) + 1.4)),
-          weight: profile.weights.volume
+          name: "量价因子",
+          detail: `成交量/20日均量 ${volumeRatio.toFixed(2)}x · 20日均额 ${fmt.money(amountMa20)}`,
+          score: clamp(volumeScore, 0, 100)
         },
         {
-          name: "价格位置",
-          detail: `均价偏离 ${fmt.pct(ind.avgBias)} · 布林位置 ${ind.bbPos.toFixed(0)}%`,
-          score: Math.round((scoreRange(ind.avgBias, p.breakout - 0.35, p.breakout + 1.2) * 0.55) + ((ind.bbPos >= 35 && ind.bbPos <= 88) ? 45 : ind.bbPos > 88 ? 18 : 25)),
-          weight: profile.weights.position
+          name: "位置因子",
+          detail: `120日区间位置 ${pos120.toFixed(0)}% · BOLL位置 ${bbPos.toFixed(0)}% · 60日回撤 ${fmt.pct(drawdown60)}`,
+          score: clamp(positionScore, 0, 100)
         },
         {
-          name: "风险过滤",
-          detail: `涨幅 ${fmt.pct(q.changePct)} · 回撤 ${fmt.pct(ind.drawdown)} · 振幅 ${fmt.pct(ind.intradayRange)}`,
-          score: Math.round((q.changePct >= p.minRise ? 24 : 6) + (q.changePct <= p.chase ? 26 : 4) + (ind.drawdown <= p.drawdown ? 26 : 8) + (ind.intradayRange > 0 && ind.intradayRange <= 8 ? 24 : 8)),
-          weight: profile.weights.risk
-        },
-        {
-          name: profile.label,
-          detail: `${bonus.label} · ${bonus.detail}`,
-          score: clamp(55 + bonus.bonus * 5, 0, 100),
-          weight: 0
+          name: "风险因子",
+          detail: `ATR14 ${fmt.price(atr)} / ${fmt.plainPct(atrPct)} · RSI ${rsi.toFixed(0)} · 距MA20 ${fmt.pct(closeToMa20)}`,
+          score: clamp(riskScore, 0, 100)
         }
-      ].map(factor => ({ ...factor, score: clamp(factor.score, 0, 100) }));
-      const rawScore = factors.reduce((sum, factor) => sum + factor.score * factor.weight, 0) + bonus.bonus;
-      const riskBlock = q.changePct > p.chase || ind.drawdown > p.drawdown || ind.rsi > p.rsiMax + 8 || ind.intradayRange > 9.5;
-      const score = Math.round(clamp(rawScore * (0.7 + minDataScore * 0.003), 0, riskBlock ? 72 : 100));
-      const word = riskBlock ? "风控观望" : score >= profile.trigger ? "触发买点" : score >= profile.near ? "接近买点" : score >= 48 ? "弱信号" : "观望";
-      const cls = score >= 82 ? "up" : score >= 62 ? "neutral" : "";
-      els.signalWord.textContent = word;
-      els.signalWord.className = `signal-word ${cls}`;
-      els.signalReason.textContent = riskBlock
-        ? "风险闸门触发，等待回撤、过热或振幅降温。"
-        : score >= profile.trigger
-          ? `${profile.label} 条件满足，可作为人工复核信号。`
-          : score >= profile.near
-            ? `${profile.label} 接近触发，重点等关键条件继续确认。`
-            : score >= 48
-              ? `${profile.label} 已有局部条件，但一致性还不够。`
-              : `${profile.label}：${profile.note}`;
-      els.signalTime.textContent = state.lastFetchAt ? fmt.time(state.lastFetchAt) : "--";
-      els.score.textContent = String(score);
-      els.score.style.setProperty("--score", score);
-      els.checks.innerHTML = factors.map(factor => `
-        <div class="check">
-          <span class="mark ${factorMark(factor.score)}">${factor.score >= 70 ? "✓" : factor.score >= 45 ? "~" : "!"}</span>
+      ];
+
+      const nextDay = buildNextDayView({ latest, score, signal, support1, pressure1, volumeRatio, macd, rsi, ma20, ma60, atr });
+      const week = buildWeekView({ latest, support1, pressure1, ma20, ma60, score, volumeRatio, rsi, macd });
+      const month = buildMonthView({ latest, ma20, ma60, ma120, ma60Slope, score, pos120, atrPct, high120, low120 });
+      const reason = buildReason({ latest, ma20, ma60, score, volumeRatio, rsi, macd, support1, pressure1 });
+
+      return {
+        latest,
+        prev,
+        score,
+        signal,
+        signalClass,
+        reason,
+        tags,
+        factors,
+        horizons: [
+          { label: "次日", text: nextDay },
+          { label: "一周", text: week },
+          { label: "一个月", text: month }
+        ],
+        levels: [
+          { label: "关键支撑", text: `${support1.label} ${fmt.price(support1.value)}；下方防守 ${support2.label} ${fmt.price(support2.value)}` },
+          { label: "关键压力", text: `${pressure1.label} ${fmt.price(pressure1.value)}；强压力 ${pressure2.label} ${fmt.price(pressure2.value)}` },
+          { label: "观察买点", text: `回踩 ${fmt.price(buyPullbackLow)}-${fmt.price(buyPullbackHigh)} 不破并缩量企稳；或放量收盘站上 ${fmt.price(breakoutLine)}` },
+          { label: "关键卖点", text: `跌破 ${fmt.price(stopLine)} 需要防守；${sellStrength} 可减仓观察；${trendSell}` }
+        ],
+        metrics: {
+          ma5, ma10, ma20, ma60, ma120, ema20, ema60,
+          macd, rsi, kdj, atr, atrPct,
+          volMa5, volMa20, volumeRatio,
+          amountMa20, high20, low20, high60, low60,
+          high120, low120, drawdown60, pos120,
+          closeToMa20, closeToMa60, ma20Slope, ma60Slope,
+          bbUpper, bbMid, bbLower, bbPos
+        }
+      };
+    }
+
+    function tagFor(ok, good, bad) {
+      return { text: ok ? good : bad, cls: ok ? "ok" : "warn" };
+    }
+
+    function buildReason(ctx) {
+      const trend = ctx.latest.close >= ctx.ma20 && ctx.ma20 >= ctx.ma60 ? "日K趋势保持在中期均线上方" : "日K趋势仍需重新站稳中期均线";
+      const volume = ctx.volumeRatio >= 1.2 ? "量能有确认" : "量能确认不足";
+      const momentum = ctx.macd.hist >= ctx.macd.prevHist ? "MACD动能改善" : "MACD动能偏弱";
+      const heat = ctx.rsi > 75 ? "但RSI偏热，追高风险上升" : "RSI未明显过热";
+      return `${trend}，${momentum}，${volume}，${heat}。观察区间 ${fmt.price(ctx.support1.value)}-${fmt.price(ctx.pressure1.value)}。`;
+    }
+
+    function buildNextDayView(ctx) {
+      if (ctx.latest.close >= ctx.pressure1.value && ctx.volumeRatio >= 1.2) {
+        return `重点看能否站稳 ${fmt.price(ctx.pressure1.value)} 上方；若高开后量能跟不上，先防冲高回落。`;
+      }
+      if (ctx.latest.close <= ctx.support1.value + ctx.atr * 0.35) {
+        return `重点看 ${fmt.price(ctx.support1.value)} 附近承接；缩量止跌比快速拉升更关键。`;
+      }
+      if (ctx.rsi > 75) {
+        return `短线偏热，次日更适合看回踩质量；跌破 ${fmt.price(ctx.ma20)} 会削弱中线结构。`;
+      }
+      return `主要观察 ${fmt.price(ctx.support1.value)}-${fmt.price(ctx.pressure1.value)} 区间，放量突破或缩量回踩企稳才提高信号等级。`;
+    }
+
+    function buildWeekView(ctx) {
+      if (ctx.latest.close >= ctx.ma20 && ctx.ma20 >= ctx.ma60 && ctx.macd.hist >= ctx.macd.prevHist) {
+        return `一周维度偏向趋势延续，核心是MA20不失守；若放量越过 ${fmt.price(ctx.pressure1.value)}，趋势评分会继续抬升。`;
+      }
+      if (ctx.latest.close < ctx.ma60) {
+        return `一周维度以修复为主，先看能否重新收回MA60 ${fmt.price(ctx.ma60)}，否则仍按弱势震荡处理。`;
+      }
+      return `一周维度处在中性区间，MA20 ${fmt.price(ctx.ma20)} 与压力 ${fmt.price(ctx.pressure1.value)} 是两条主要观察线。`;
+    }
+
+    function buildMonthView(ctx) {
+      if (ctx.latest.close >= ctx.ma60 && ctx.ma60Slope >= 0 && ctx.score >= 68) {
+        return `一个月维度可按中线跟踪处理，重点看MA60斜率能否继续向上，以及120日区间位置是否进入过热区。`;
+      }
+      if (ctx.latest.close < ctx.ma60 || ctx.score < 52) {
+        return `一个月维度仍需耐心等底部/箱体确认，站回MA60并保持三到五个交易日更有参考价值。`;
+      }
+      return `一个月维度是箱体观察，区间下沿 ${fmt.price(ctx.low120)}，上沿 ${fmt.price(ctx.high120)}，突破前不宜把短线波动当趋势。`;
+    }
+
+    function currentSnapshot() {
+      const dailyLatest = state.analysis && state.analysis.latest;
+      if (state.quote) return state.quote;
+      if (!dailyLatest) return null;
+      const prev = state.analysis.prev || dailyLatest;
+      return normalizeQuote({
+        source: "日K",
+        price: dailyLatest.close,
+        open: dailyLatest.open,
+        prevClose: prev.close,
+        high: dailyLatest.high,
+        low: dailyLatest.low,
+        volume: dailyLatest.volume,
+        turnover: dailyLatest.amount,
+        at: parseDate(`${dailyLatest.date} 15:00:00`)
+      });
+    }
+
+    function renderAll() {
+      renderTop();
+      renderAnalysis();
+      renderIntradayChart();
+      renderDailyChart();
+    }
+
+    function renderTop() {
+      const q = currentSnapshot();
+      const analysis = state.analysis;
+      const live = isTradingWindow();
+      setConnection(live ? "交易时段监控中" : "非交易时段", live);
+      els.quoteSource.textContent = `行情源 ${state.quoteSource}`;
+      if (!q) {
+        els.price.textContent = "--";
+        els.changePct.textContent = "--";
+        return;
+      }
+      els.price.textContent = fmt.price(q.price);
+      els.price.className = `value ${q.change > 0 ? "up" : q.change < 0 ? "down" : ""}`;
+      els.priceTime.textContent = `行情时间 ${q.at.toLocaleString("zh-CN", { hour12: false })}`;
+      els.changePct.textContent = fmt.pct(q.changePct);
+      els.changePct.className = `value ${q.change > 0 ? "up" : q.change < 0 ? "down" : ""}`;
+      els.changeText.textContent = `涨跌 ${q.change >= 0 ? "+" : ""}${fmt.price(q.change)} · 成交额 ${fmt.money(q.turnover)}`;
+      if (analysis) {
+        els.dailyDate.textContent = analysis.latest.date;
+        els.topScore.textContent = String(analysis.score);
+        els.topScore.className = `value ${analysis.signalClass}`;
+        els.topSignal.textContent = analysis.signal;
+        const m = analysis.metrics;
+        els.trendState.textContent = analysis.latest.close >= m.ma20 && m.ma20 >= m.ma60 ? "多头" : analysis.latest.close >= m.ma60 ? "修复" : "防守";
+        els.trendState.className = `value ${analysis.latest.close >= m.ma20 ? "up" : analysis.latest.close >= m.ma60 ? "neutral" : "down"}`;
+        els.trendDetail.textContent = `MA20 ${fmt.price(m.ma20)} · MA60 ${fmt.price(m.ma60)} · MA120 ${fmt.price(m.ma120)}`;
+        els.volumeState.textContent = `${m.volumeRatio.toFixed(2)}x`;
+        els.volumeState.className = `value ${m.volumeRatio >= 1.2 ? "up" : m.volumeRatio < 0.75 ? "neutral" : ""}`;
+        els.volumeDetail.textContent = `ATR ${fmt.price(m.atr)} · ${fmt.plainPct(m.atrPct)} · 换手 ${fmt.plainPct(analysis.latest.turnover)}`;
+      }
+    }
+
+    function renderAnalysis() {
+      const analysis = state.analysis;
+      if (!analysis) {
+        els.signalWord.textContent = "等待";
+        els.signalReason.textContent = "日K数据读取中";
+        els.score.textContent = "0";
+        els.score.style.setProperty("--score", 0);
+        els.evidenceTags.innerHTML = "";
+        els.horizon.innerHTML = emptyRows(["次日", "一周", "一个月"]);
+        els.levels.innerHTML = emptyRows(["关键支撑", "关键压力", "观察买点", "关键卖点"], "level-row");
+        els.factors.innerHTML = "";
+        return;
+      }
+      els.signalWord.textContent = analysis.signal;
+      els.signalWord.className = `signal-word ${analysis.signalClass}`;
+      els.signalReason.textContent = analysis.reason;
+      els.score.textContent = String(analysis.score);
+      els.score.style.setProperty("--score", analysis.score);
+      els.analysisTime.textContent = analysis.latest.date;
+      els.evidenceTags.innerHTML = analysis.tags.map(tag => `<span class="tag ${tag.cls}">${tag.text}</span>`).join("");
+      els.horizon.innerHTML = analysis.horizons.map(item => `
+        <div class="horizon-row">
+          <b>${item.label}</b>
+          <span class="small">${item.text}</span>
+        </div>
+      `).join("");
+      els.levels.innerHTML = analysis.levels.map(item => `
+        <div class="level-row">
+          <b>${item.label}</b>
+          <span class="small">${item.text}</span>
+        </div>
+      `).join("");
+      els.factors.innerHTML = analysis.factors.map(factor => `
+        <div class="factor">
+          <span class="mark ${factor.score >= 72 ? "ok" : factor.score >= 50 ? "warn" : "bad"}">${factor.score >= 72 ? "✓" : factor.score >= 50 ? "~" : "!"}</span>
           <span><strong>${factor.name}</strong><em>${factor.detail}</em></span>
-          <span class="check-score">${factor.weight ? factor.score : bonus.bonus >= 0 ? `+${bonus.bonus}` : bonus.bonus}</span>
+          <span class="factor-score">${Math.round(factor.score)}</span>
         </div>
       `).join("");
     }
 
-    function readParams() {
-      return {
-        strategyMode: params.strategyMode.value,
-        breakout: Number(params.breakout.value),
-        minRise: Number(params.minRise.value),
-        volume: Number(params.volume.value),
-        rsiMax: Number(params.rsiMax.value),
-        drawdown: Number(params.drawdown.value),
-        chase: Number(params.chase.value)
-      };
+    function emptyRows(labels, cls = "horizon-row") {
+      return labels.map(label => `<div class="${cls}"><b>${label}</b><span class="small">--</span></div>`).join("");
     }
 
-    function updateParamLabels() {
-      $("pBreakoutVal").textContent = `${Number(params.breakout.value).toFixed(2)}%`;
-      $("pMinRiseVal").textContent = `${Number(params.minRise.value).toFixed(1)}%`;
-      $("pVolumeVal").textContent = `${Number(params.volume.value).toFixed(1)}x`;
-      $("pRsiMaxVal").textContent = `${Number(params.rsiMax.value).toFixed(0)}`;
-      $("pDrawdownVal").textContent = `${Number(params.drawdown.value).toFixed(1)}%`;
-      $("pChaseVal").textContent = `${Number(params.chase.value).toFixed(1).replace(".0", "")}%`;
+    function dynamicAverage(points) {
+      if (!points.length) return NaN;
+      const weighted = points.reduce((sum, p) => sum + p.price * Math.max(1, p.volumeDelta || 0), 0);
+      const vol = points.reduce((sum, p) => sum + Math.max(1, p.volumeDelta || 0), 0);
+      return vol ? weighted / vol : average(points.map(p => p.price));
     }
 
-    function renderChart() {
-      const canvas = $("chart");
+    function renderIntradayChart() {
+      const canvas = $("intradayChart");
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.max(600, Math.floor(rect.width * dpr));
-      canvas.height = Math.max(320, Math.floor(rect.height * dpr));
+      const w = Math.max(320, rect.width);
+      const h = Math.max(260, rect.height);
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
       const ctx = canvas.getContext("2d");
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const w = rect.width;
-      const h = rect.height;
       ctx.clearRect(0, 0, w, h);
       drawGrid(ctx, w, h);
       const points = state.ticks;
-      if (points.length < 1) {
-        ctx.fillStyle = "rgba(255,255,255,.45)";
-        ctx.font = "16px Microsoft YaHei, sans-serif";
-        ctx.fillText("等待实时分时数据...", 24, 42);
+      if (!points.length) {
+        drawEmpty(ctx, "等待分时行情...", 24, 42);
         return;
       }
       const prices = points.map(p => p.price).filter(Number.isFinite);
       const min = Math.min(...prices);
       const max = Math.max(...prices);
-      const pad = Math.max((max - min) * 0.18, 0.02);
+      const pad = Math.max((max - min) * 0.2, 0.03);
       const yMin = min - pad;
       const yMax = max + pad;
-      const x = (i) => 44 + i * ((w - 78) / Math.max(1, points.length - 1));
+      const x = (i) => 46 + i * ((w - 82) / Math.max(1, points.length - 1));
       const y = (price) => 24 + (yMax - price) / Math.max(0.001, yMax - yMin) * (h - 64);
-      if (points.length < 2) {
-        ctx.fillStyle = "#67a7ff";
+      if (points.length === 1) {
+        ctx.fillStyle = "#6ca7ff";
         ctx.beginPath();
         ctx.arc(w / 2, y(points[0].price), 5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "rgba(255,255,255,.45)";
-        ctx.font = "14px Microsoft YaHei, sans-serif";
-        ctx.fillText("已取得最新行情，交易时段连续刷新后形成曲线。", 24, 42);
-        drawAxisLabels(ctx, w, h, yMin, yMax, points);
+      } else {
+        drawLine(ctx, points.map((p, i) => [x(i), y(p.price)]), "#6ca7ff", 2.2);
+        const avgs = points.map((_, i) => dynamicAverage(points.slice(0, i + 1)));
+        drawLine(ctx, avgs.map((v, i) => [x(i), y(v)]), "#efc55f", 1.5);
+        const ema13 = emaSeries(points.map(p => p.price), 13);
+        drawLine(ctx, ema13.map((v, i) => [x(i), y(v)]), "#67d7dd", 1.4);
+      }
+      drawAxisLabels(ctx, w, h, yMin, yMax, points);
+    }
+
+    function renderDailyChart() {
+      const canvas = $("dailyChart");
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.max(320, rect.width);
+      const h = Math.max(320, rect.height);
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      drawGrid(ctx, w, h);
+      const all = state.daily;
+      if (!all.length) {
+        drawEmpty(ctx, "等待日K数据...", 24, 42);
         return;
       }
-      drawLine(ctx, points.map((p, i) => [x(i), y(p.price)]), "#67a7ff", 2.4);
-      const avgs = points.map((_, i) => dynamicAverage(points.slice(0, i + 1)));
-      drawLine(ctx, avgs.map((v, i) => [x(i), y(v)]), "#f3c969", 1.6);
-      const emaTrend = emaSeries(points.map(p => p.price), 13);
-      drawLine(ctx, emaTrend.map((v, i) => [x(i), y(v)]), "#35c888", 1.4);
-      drawAxisLabels(ctx, w, h, yMin, yMax, points);
+      const data = all.slice(-90);
+      const closes = all.map(row => row.close);
+      const ma20Series = smaSeries(closes, 20).slice(-90);
+      const ma60Series = smaSeries(closes, 60).slice(-90);
+      const visibleValues = data.flatMap(row => [row.high, row.low])
+        .concat(ma20Series, ma60Series)
+        .filter(Number.isFinite);
+      const min = Math.min(...visibleValues);
+      const max = Math.max(...visibleValues);
+      const pad = Math.max((max - min) * 0.13, 0.05);
+      const yMin = min - pad;
+      const yMax = max + pad;
+      const left = 48;
+      const right = 24;
+      const top = 24;
+      const bottom = 46;
+      const plotW = w - left - right;
+      const plotH = h - top - bottom;
+      const step = plotW / Math.max(1, data.length);
+      const candleW = clamp(step * 0.62, 3, 10);
+      const x = (i) => left + step * i + step / 2;
+      const y = (price) => top + (yMax - price) / Math.max(0.001, yMax - yMin) * plotH;
+      data.forEach((row, i) => {
+        const up = row.close >= row.open;
+        ctx.strokeStyle = up ? "#ee6262" : "#34c08a";
+        ctx.fillStyle = up ? "rgba(238,98,98,.72)" : "rgba(52,192,138,.72)";
+        const cx = x(i);
+        ctx.beginPath();
+        ctx.moveTo(cx, y(row.high));
+        ctx.lineTo(cx, y(row.low));
+        ctx.stroke();
+        const bodyY = Math.min(y(row.open), y(row.close));
+        const bodyH = Math.max(1, Math.abs(y(row.open) - y(row.close)));
+        ctx.fillRect(cx - candleW / 2, bodyY, candleW, bodyH);
+      });
+      drawLine(ctx, ma20Series.map((v, i) => [x(i), y(v)]), "#efc55f", 1.5);
+      drawLine(ctx, ma60Series.map((v, i) => [x(i), y(v)]), "#b59cff", 1.5);
+      drawPriceLabels(ctx, w, h, yMin, yMax);
+      ctx.fillStyle = "rgba(255,255,255,.5)";
+      ctx.font = "12px Microsoft YaHei, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(data[0].date, left, h - 16);
+      ctx.textAlign = "right";
+      ctx.fillText(data[data.length - 1].date, w - right, h - 16);
     }
 
     function drawGrid(ctx, w, h) {
@@ -1392,7 +1530,7 @@ const strategyProfiles = {
         ctx.stroke();
       }
       for (let i = 0; i <= 5; i++) {
-        const x = 44 + i * ((w - 78) / 5);
+        const x = 44 + i * ((w - 68) / 5);
         ctx.beginPath();
         ctx.moveTo(x, 24);
         ctx.lineTo(x, h - 40);
@@ -1400,46 +1538,61 @@ const strategyProfiles = {
       }
     }
 
-    function drawLine(ctx, pts, color, width) {
-      if (!pts.length) return;
+    function drawLine(ctx, points, color, width) {
+      const clean = points.filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+      if (!clean.length) return;
       ctx.strokeStyle = color;
       ctx.lineWidth = width;
       ctx.beginPath();
-      pts.forEach(([x, y], index) => index ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+      clean.forEach(([x, y], index) => index ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
       ctx.stroke();
     }
 
-    function drawAxisLabels(ctx, w, h, yMin, yMax, points) {
-      ctx.fillStyle = "rgba(255,255,255,.52)";
-      ctx.font = "12px Microsoft YaHei, sans-serif";
-      ctx.textAlign = "left";
-      ctx.fillText(yMax.toFixed(2), 8, 30);
-      ctx.fillText(((yMin + yMax) / 2).toFixed(2), 8, h / 2);
-      ctx.fillText(yMin.toFixed(2), 8, h - 42);
-      ctx.textAlign = "center";
-      ctx.fillText(fmt.time(points[0].at), 60, h - 16);
-      ctx.fillText(fmt.time(points[points.length - 1].at), w - 74, h - 16);
+    function drawEmpty(ctx, text, x, y) {
+      ctx.fillStyle = "rgba(255,255,255,.45)";
+      ctx.font = "15px Microsoft YaHei, sans-serif";
+      ctx.fillText(text, x, y);
     }
 
-    Object.values(params).forEach(input => {
-      input.addEventListener("input", () => {
-        updateParamLabels();
-        if (state.quote) renderSignal();
-      });
-      input.addEventListener("change", () => {
-        updateParamLabels();
-        if (state.quote) renderSignal();
-      });
-    });
-    $("refreshBtn").addEventListener("click", refresh);
-    els.stockSelect.addEventListener("change", (event) => switchStock(event.target.value));
-    window.addEventListener("resize", renderChart);
+    function drawAxisLabels(ctx, w, h, yMin, yMax, points) {
+      drawPriceLabels(ctx, w, h, yMin, yMax);
+      ctx.fillStyle = "rgba(255,255,255,.5)";
+      ctx.font = "12px Microsoft YaHei, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(fmt.time(points[0].at), 46, h - 16);
+      ctx.textAlign = "right";
+      ctx.fillText(fmt.time(points[points.length - 1].at), w - 24, h - 16);
+    }
 
-    updateParamLabels();
-    updateStockHeader();
-    addLog("看板已启动，正在连接行情源。");
-    refresh();
-    state.fetchTimer = setInterval(refresh, REFRESH_MS);
+    function drawPriceLabels(ctx, w, h, yMin, yMax) {
+      ctx.fillStyle = "rgba(255,255,255,.5)";
+      ctx.font = "12px Microsoft YaHei, sans-serif";
+      ctx.textAlign = "left";
+      for (let i = 0; i <= 4; i++) {
+        const value = yMax - i * ((yMax - yMin) / 4);
+        const y = 28 + i * ((h - 64) / 4);
+        ctx.fillText(value.toFixed(2), 8, y + 4);
+      }
+    }
+
+    function start() {
+      $("refreshBtn").addEventListener("click", () => {
+        addLog("手动刷新");
+        refreshQuote();
+        refreshDaily();
+      });
+      window.addEventListener("resize", () => {
+        renderIntradayChart();
+        renderDailyChart();
+      });
+      refreshDaily();
+      refreshQuote();
+      state.timers.push(setInterval(refreshQuote, REFRESH_MS));
+      state.timers.push(setInterval(refreshDaily, DAILY_REFRESH_MS));
+      renderAll();
+    }
+
+    start();
   </script>
 </body>
 </html>
