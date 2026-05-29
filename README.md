@@ -1,11 +1,12 @@
 # 永鼎股份 600105 日K中长线观察看板
 
-当前版本 `v8`，这是一个针对永鼎股份 `600105.SH` 的单股静态看板。页面保留分时实时曲线，同时把核心量化策略切换到日K维度，更适合中长线观察。
+当前版本 `v9`，这是一个针对永鼎股份 `600105.SH` 的单股静态看板。页面保留分时实时曲线，同时把核心量化策略切换到日K维度，更适合中长线观察。
 
 ## 功能
 
-- 分时监控：浏览器打开后自动轮询新浪行情，失败时切换腾讯行情。
+- 分时监控：浏览器打开后先回填当天 9:30 到当前的分钟走势，再自动轮询实时行情。
 - 日K更新：页面自动读取东方财富日K数据，计算中长线指标。
+- 自动化数据：GitHub Actions 会在交易日自动生成 `data/yd_600105_daily.json`，页面优先读取这个文件。
 - 日K图表：展示最近 90 个交易日K线，并叠加 MA20、MA60。
 - 中长线评分：从趋势、动量、量价、位置、风险五个维度计算综合评分。
 - 周期观察：输出次日、一周、一个月三个观察维度。
@@ -32,9 +33,18 @@
 
 这是纯静态页面，适合部署到 GitHub Pages。
 
-1. 上传 `index.html`、`README.md` 和 `.nojekyll` 到仓库根目录。
+1. 上传 `index.html`、`README.md`、`.nojekyll`、`scripts/update_yongding_daily.py` 和 `.github/workflows/update-yongding-daily.yml` 到仓库根目录对应位置。
 2. 在 GitHub 仓库 `Settings -> Pages` 中选择 `Deploy from a branch`。
 3. 分支选择 `main`，目录选择 `/root`。
+
+## GitHub Actions 自动更新
+
+工作流文件位于 `.github/workflows/update-yongding-daily.yml`。
+
+- 交易日北京时间约 16:20 和 20:10 自动运行一次。
+- 也可以在 GitHub 仓库 `Actions -> Update Yongding Daily Data -> Run workflow` 手动运行。
+- 运行后会更新 `data/yd_600105_daily.json` 并自动提交。
+- 看板打开时会优先读取该静态 JSON；如果文件不存在或读取失败，再回退到浏览器端在线行情源。
 
 如果使用本地脚本发布，设置 `GITHUB_TOKEN` 后运行：
 

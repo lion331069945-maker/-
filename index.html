@@ -496,7 +496,7 @@
     <header class="topbar">
       <div class="brand">
         <h1>永鼎股份 600105.SH</h1>
-        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v8</div>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v9</div>
       </div>
       <div class="toolbar">
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
@@ -541,7 +541,7 @@
           <div class="panel-head">
             <div>
               <div class="panel-title">分时实时曲线</div>
-              <div id="intradayHint" class="small">价格 · 动态均价 · EMA13</div>
+              <div id="intradayHint" class="small">打开后回填当天 9:30 至当前分钟线 · 价格 / 均价 / EMA13</div>
             </div>
             <div class="legend">
               <span><i class="swatch"></i>价格</span>
@@ -633,7 +633,7 @@
 
     const REFRESH_MS = 5000;
     const DAILY_REFRESH_MS = 30 * 60 * 1000;
-    const MAX_INTRADAY_POINTS = 260;
+    const MAX_INTRADAY_POINTS = 320;
 
     const state = {
       quote: null,
@@ -643,6 +643,7 @@
       lastFetchAt: null,
       quoteSource: "--",
       quoteLoading: false,
+      minuteLoadedDate: null,
       requestId: 0,
       timers: []
     };
@@ -841,6 +842,81 @@
       }
     }
 
+    async function hydrateIntradayHistory() {
+      try {
+        const stamp = Date.now();
+        const response = await fetch(`https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=${STOCK.tencent}&_=${stamp}`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`腾讯分钟线 HTTP ${response.status}`);
+        const payload = await response.json();
+        const points = parseTencentMinute(payload);
+        if (!points.length) throw new Error("分钟线为空");
+        const latestDate = points[points.length - 1].tradeDate;
+        if (state.minuteLoadedDate === latestDate && state.ticks.length >= points.length) return;
+        state.minuteLoadedDate = latestDate;
+        mergeMinuteTicks(points);
+        els.intradayHint.textContent = `已回填当天分时走势：${points[0].timeText}-${points[points.length - 1].timeText} · 继续实时刷新`;
+        addLog(`已回填分时走势：${points[0].timeText}-${points[points.length - 1].timeText}`);
+        renderIntradayChart();
+      } catch (error) {
+        els.intradayHint.textContent = `分时历史回填失败：${error.message} · 仍会继续实时刷新`;
+        addLog(`分时回填失败：${error.message}`);
+      }
+    }
+
+    function parseTencentMinute(payload) {
+      const node = payload && payload.data && payload.data[STOCK.tencent];
+      const holder = node && node.data;
+      const rows = holder && Array.isArray(holder.data) ? holder.data : [];
+      const tradeDate = holder && holder.date ? String(holder.date) : "";
+      return rows.map((line, index) => {
+        const parts = String(line).trim().split(/\s+/);
+        const timeText = parts[0];
+        const price = Number(parts[1]);
+        const volume = Number(parts[2]);
+        const turnover = Number(parts[3]);
+        const at = parseMinuteTime(tradeDate, timeText);
+        const prevVolume = index > 0 ? Number(String(rows[index - 1]).trim().split(/\s+/)[2]) : 0;
+        return {
+          source: "腾讯分钟线",
+          price,
+          open: NaN,
+          prevClose: NaN,
+          high: NaN,
+          low: NaN,
+          volume,
+          turnover,
+          change: NaN,
+          changePct: NaN,
+          at,
+          seenAt: at,
+          volumeDelta: Math.max(0, volume - prevVolume),
+          timeText,
+          tradeDate
+        };
+      }).filter(item => Number.isFinite(item.price) && item.at instanceof Date);
+    }
+
+    function parseMinuteTime(tradeDate, timeText) {
+      const rawDate = tradeDate && tradeDate.length === 8
+        ? `${tradeDate.slice(0, 4)}/${tradeDate.slice(4, 6)}/${tradeDate.slice(6, 8)}`
+        : new Date().toLocaleDateString("zh-CN");
+      const rawTime = timeText && timeText.length === 4
+        ? `${timeText.slice(0, 2)}:${timeText.slice(2, 4)}:00`
+        : "09:30:00";
+      return parseDate(`${rawDate} ${rawTime}`);
+    }
+
+    function mergeMinuteTicks(points) {
+      const byTime = new Map();
+      [...state.ticks, ...points].forEach((item) => {
+        const key = item.at instanceof Date ? item.at.getTime() : item.timeText;
+        byTime.set(key, item);
+      });
+      state.ticks = [...byTime.values()]
+        .sort((a, b) => a.at - b.at)
+        .slice(-MAX_INTRADAY_POINTS);
+    }
+
     function addTick(quote) {
       const last = state.ticks[state.ticks.length - 1];
       const volumeDelta = last && Number.isFinite(quote.volume)
@@ -886,6 +962,12 @@
     }
 
     async function fetchDailyData({ beg, end, fields1, fields2 }) {
+      try {
+        const staticDaily = await fetchStaticDaily();
+        if (staticDaily.length) return staticDaily;
+      } catch (error) {
+        addLog(`静态日K失败，切换在线源：${error.message}`);
+      }
       const eastmoneyUrl = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${STOCK.eastmoneySecid}&ut=fa5fd1943c7b386f172d6893dbfba10b&fields1=${fields1}&fields2=${fields2}&klt=101&fqt=1&beg=${beg}&end=${end}&lmt=420`;
       try {
         const payload = await jsonp(eastmoneyUrl, "cb", 9000);
@@ -895,6 +977,15 @@
         addLog(`东方财富日K失败，切换腾讯：${error.message}`);
       }
       return fetchTencentDaily();
+    }
+
+    async function fetchStaticDaily() {
+      const response = await fetch(`data/yd_600105_daily.json?v=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`静态JSON HTTP ${response.status}`);
+      const payload = await response.json();
+      if (!payload || !Array.isArray(payload.daily)) return [];
+      addLog(`读取自动更新日K：${payload.latest || payload.daily.at(-1)?.date || "--"}`);
+      return payload.daily.map(normalizeDailyRow).filter(validDailyRow);
     }
 
     async function fetchTencentDaily() {
@@ -918,7 +1009,7 @@
       const rows = payload && payload.data && Array.isArray(payload.data.klines) ? payload.data.klines : [];
       return rows.map((line) => {
         const parts = String(line).split(",");
-        return {
+        return normalizeDailyRow({
           date: parts[0],
           open: Number(parts[1]),
           close: Number(parts[2]),
@@ -930,8 +1021,8 @@
           changePct: Number(parts[8]),
           change: Number(parts[9]),
           turnover: Number(parts[10])
-        };
-      }).filter(row => row.date && [row.open, row.close, row.high, row.low].every(Number.isFinite));
+        });
+      }).filter(validDailyRow);
     }
 
     function parseTencentDaily(payload) {
@@ -947,7 +1038,7 @@
         const prevClose = index > 0 ? Number(rows[index - 1][2]) : open;
         const change = close - prevClose;
         const changePct = prevClose ? change / prevClose * 100 : 0;
-        return {
+        return normalizeDailyRow({
           date: parts[0],
           open,
           close,
@@ -959,8 +1050,28 @@
           changePct,
           change,
           turnover: NaN
-        };
-      }).filter(row => row.date && [row.open, row.close, row.high, row.low].every(Number.isFinite));
+        });
+      }).filter(validDailyRow);
+    }
+
+    function normalizeDailyRow(row) {
+      return {
+        date: row.date,
+        open: Number(row.open),
+        close: Number(row.close),
+        high: Number(row.high),
+        low: Number(row.low),
+        volume: Number(row.volume),
+        amount: Number(row.amount),
+        amplitude: Number(row.amplitude),
+        changePct: Number(row.changePct),
+        change: Number(row.change),
+        turnover: row.turnover === null ? NaN : Number(row.turnover)
+      };
+    }
+
+    function validDailyRow(row) {
+      return row.date && [row.open, row.close, row.high, row.low].every(Number.isFinite);
     }
 
     function clamp(value, min, max) {
@@ -1586,8 +1697,9 @@
         renderDailyChart();
       });
       refreshDaily();
-      refreshQuote();
+      hydrateIntradayHistory().finally(refreshQuote);
       state.timers.push(setInterval(refreshQuote, REFRESH_MS));
+      state.timers.push(setInterval(hydrateIntradayHistory, 60 * 1000));
       state.timers.push(setInterval(refreshDaily, DAILY_REFRESH_MS));
       renderAll();
     }
