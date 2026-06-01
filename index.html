@@ -285,6 +285,62 @@
       background: var(--panel-2);
     }
 
+    .breakout-main {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-top: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--blue);
+      border-radius: 8px;
+      background: rgba(255,255,255,.028);
+    }
+
+    .breakout-main.ready {
+      border-left-color: var(--red);
+      background: linear-gradient(90deg, rgba(238,98,98,.16), rgba(255,255,255,.026));
+    }
+
+    .breakout-main.watch {
+      border-left-color: var(--amber);
+      background: linear-gradient(90deg, rgba(239,197,95,.15), rgba(255,255,255,.026));
+    }
+
+    .breakout-main.fail {
+      border-left-color: var(--green);
+      background: linear-gradient(90deg, rgba(52,192,138,.12), rgba(255,255,255,.026));
+    }
+
+    .breakout-word {
+      font-size: 24px;
+      line-height: 1.05;
+      font-weight: 950;
+      margin-bottom: 6px;
+    }
+
+    .breakout-stake {
+      display: grid;
+      place-items: center;
+      min-width: 76px;
+      height: 54px;
+      padding: 0 10px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 8px;
+      background: rgba(0,0,0,.18);
+      font-size: 18px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .breakout-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 10px;
+    }
+
     .signal-word {
       font-size: clamp(25px, 3vw, 34px);
       line-height: 1;
@@ -769,6 +825,7 @@
       .bt-line { grid-template-columns: 1fr; }
       .bt-grid { grid-template-columns: 1fr; }
       .position-hero, .position-detail { grid-template-columns: 1fr; }
+      .breakout-main { grid-template-columns: 1fr; }
       .replay-row { grid-template-columns: 64px 1fr; }
       .replay-row strong { grid-column: 2; }
     }
@@ -779,7 +836,7 @@
     <header class="topbar">
       <div class="brand">
         <h1>永鼎股份 600105.SH</h1>
-        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v13</div>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v14</div>
       </div>
       <div class="toolbar">
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
@@ -858,6 +915,21 @@
       </div>
 
       <aside class="side">
+        <article class="card">
+          <div class="panel-head">
+            <div class="panel-title">盘中突破信号</div>
+            <div id="breakoutTime" class="small">--</div>
+          </div>
+          <div id="breakoutSignal" class="breakout-main">
+            <div>
+              <div id="breakoutWord" class="breakout-word blue">等待盘中</div>
+              <div id="breakoutReason" class="small">交易时间内监控关键压力位、量能和日K底分。</div>
+            </div>
+            <div id="breakoutStake" class="breakout-stake">--</div>
+          </div>
+          <div id="breakoutTags" class="breakout-tags"></div>
+        </article>
+
         <article class="card verdict">
           <div class="panel-head">
             <div class="panel-title">日K策略结论</div>
@@ -983,6 +1055,12 @@
       trendDetail: $("trendDetail"),
       volumeState: $("volumeState"),
       volumeDetail: $("volumeDetail"),
+      breakoutTime: $("breakoutTime"),
+      breakoutSignal: $("breakoutSignal"),
+      breakoutWord: $("breakoutWord"),
+      breakoutReason: $("breakoutReason"),
+      breakoutStake: $("breakoutStake"),
+      breakoutTags: $("breakoutTags"),
       signalWord: $("signalWord"),
       signalReason: $("signalReason"),
       score: $("score"),
@@ -1767,6 +1845,113 @@
         .join("");
     }
 
+    function buildIntradayBreakoutSignal(analysis, quote) {
+      if (!analysis || !quote) {
+        return {
+          status: "watch",
+          cls: "watch",
+          word: "等待盘中",
+          stake: "--",
+          reason: "交易时间内监控关键压力位、量能和日K底分。",
+          tags: ["实时行情未就绪"]
+        };
+      }
+
+      const pressure = analysis.levels[1]?.points?.[0]?.value;
+      const support = analysis.levels[0]?.points?.[0]?.value;
+      const m = analysis.metrics;
+      const price = quote.price;
+      const threshold = Number.isFinite(pressure) ? pressure : m.high20;
+      const breakPct = Number.isFinite(threshold) ? (price / threshold - 1) * 100 : NaN;
+      const scoreOk = analysis.score >= 60;
+      const trendOk = price >= m.ma20 && m.ma20 >= m.ma60;
+      const macdOk = m.macd.hist >= m.macd.prevHist || analysis.score >= 68;
+      const heatOk = m.rsi < 78;
+      const volumePace = intradayVolumePace(quote);
+      const volumeOk = Number.isFinite(volumePace) ? volumePace >= 1.35 : m.volumeRatio >= 1.1;
+      const broke = Number.isFinite(breakPct) && breakPct >= 0.15;
+      const nearBreak = Number.isFinite(breakPct) && breakPct > -1.2;
+      const failed = Number.isFinite(threshold) && price < threshold && analysis.latest.close >= threshold;
+      const tags = [
+        `关键位 ${fmt.price(threshold)}`,
+        `现价 ${fmt.price(price)}`,
+        Number.isFinite(breakPct) ? `突破幅度 ${fmt.pct(breakPct)}` : "",
+        Number.isFinite(volumePace) ? `量能进度 ${volumePace.toFixed(2)}x` : `日K量比 ${m.volumeRatio.toFixed(2)}x`,
+        `日K评分 ${analysis.score}`
+      ].filter(Boolean);
+
+      if (broke && scoreOk && trendOk && heatOk && volumeOk) {
+        const stake = macdOk ? "试仓10%-20%" : "试仓10%";
+        return {
+          status: "ready",
+          cls: "ready",
+          word: "盘中突破",
+          stake,
+          reason: macdOk
+            ? `实时价已突破 ${fmt.price(threshold)}，量能跟上，日K底分允许提前试仓；收盘站稳后再交给仓位管理加到目标仓。`
+            : `实时价已放量突破 ${fmt.price(threshold)}，但MACD仍需确认，只允许小试仓；跌回关键位应撤销试仓。`,
+          tags
+        };
+      }
+      if (broke && scoreOk && trendOk) {
+        return {
+          status: "watch",
+          cls: "watch",
+          word: "突破观察",
+          stake: "先不追",
+          reason: `价格已碰过关键位，但量能、MACD或热度条件不足，等回踩不破或收盘确认。`,
+          tags
+        };
+      }
+      if (nearBreak && scoreOk && trendOk) {
+        return {
+          status: "watch",
+          cls: "watch",
+          word: "临近突破",
+          stake: "等放量",
+          reason: `距离关键位 ${fmt.price(threshold)} 很近，只有放量站上后才给试仓信号。`,
+          tags
+        };
+      }
+      if (failed) {
+        return {
+          status: "fail",
+          cls: "fail",
+          word: "突破失败",
+          stake: "取消试仓",
+          reason: `实时价跌回关键位 ${fmt.price(threshold)} 下方，盘中突破条件失效。`,
+          tags
+        };
+      }
+      return {
+        status: "idle",
+        cls: "",
+        word: "未突破",
+        stake: "--",
+        reason: `当前未站上关键压力 ${fmt.price(threshold)}，盘中不提前给买入信号。下方支撑参考 ${fmt.price(support)}。`,
+        tags
+      };
+    }
+
+    function intradayVolumePace(quote) {
+      if (!quote || !Number.isFinite(quote.volume) || !state.analysis) return NaN;
+      const now = quote.at && typeof quote.at.getHours === "function" ? quote.at : new Date();
+      const minutes = now.getHours() * 60 + now.getMinutes();
+      const morningStart = 9 * 60 + 30;
+      const morningEnd = 11 * 60 + 30;
+      const afternoonStart = 13 * 60;
+      const afternoonEnd = 15 * 60;
+      let elapsed = 0;
+      if (minutes <= morningStart) elapsed = 0;
+      else if (minutes <= morningEnd) elapsed = minutes - morningStart;
+      else if (minutes < afternoonStart) elapsed = 120;
+      else if (minutes <= afternoonEnd) elapsed = 120 + minutes - afternoonStart;
+      else elapsed = 240;
+      if (elapsed <= 0) return NaN;
+      const expected = state.analysis.metrics.volMa20 * (elapsed / 240);
+      return expected ? quote.volume / expected : NaN;
+    }
+
     function runBacktest(daily) {
       if (!Array.isArray(daily) || daily.length < 150) return null;
       const startIndex = Math.max(129, daily.length - 260);
@@ -1986,6 +2171,7 @@
 
     function renderAll() {
       renderTop();
+      renderIntradayBreakout();
       renderAnalysis();
       renderBacktest();
       renderIntradayChart();
@@ -2022,6 +2208,20 @@
         els.volumeState.className = `value ${m.volumeRatio >= 1.2 ? "up" : m.volumeRatio < 0.75 ? "neutral" : ""}`;
         els.volumeDetail.textContent = `ATR ${fmt.price(m.atr)} · ${fmt.plainPct(m.atrPct)} · 换手 ${fmt.plainPct(analysis.latest.turnover)}`;
       }
+    }
+
+    function renderIntradayBreakout() {
+      const q = currentSnapshot();
+      const signal = buildIntradayBreakoutSignal(state.analysis, q);
+      const live = !!state.quote && isTradingWindow();
+      els.breakoutTime.textContent = q ? `${live ? "盘中" : "非交易"} ${fmt.time(q.at)}` : "--";
+      els.breakoutSignal.className = `breakout-main ${signal.cls || ""}`;
+      els.breakoutWord.textContent = live || signal.status === "ready" ? signal.word : "等待开盘";
+      els.breakoutWord.className = `breakout-word ${signal.cls === "ready" ? "up" : signal.cls === "fail" ? "down" : signal.cls === "watch" ? "neutral" : "blue"}`;
+      els.breakoutReason.textContent = live ? signal.reason : "非交易时间不触发盘中试仓；开盘后监控关键压力位、量能进度和日K底分。";
+      els.breakoutStake.textContent = live ? signal.stake : "--";
+      els.breakoutStake.className = `breakout-stake ${signal.cls === "ready" ? "up" : signal.cls === "fail" ? "down" : signal.cls === "watch" ? "neutral" : ""}`;
+      els.breakoutTags.innerHTML = signal.tags.map(tag => `<span class="tag ${signal.cls === "ready" ? "ok" : signal.cls === "fail" ? "bad" : "warn"}">${tag}</span>`).join("");
     }
 
     function renderAnalysis() {
