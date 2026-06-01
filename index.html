@@ -1872,15 +1872,17 @@
       const broke = Number.isFinite(breakPct) && breakPct >= 0.15;
       const nearBreak = Number.isFinite(breakPct) && breakPct > -1.2;
       const failed = Number.isFinite(threshold) && price < threshold && analysis.latest.close >= threshold;
+      const hold = intradayBreakoutHold(threshold, quote);
       const tags = [
         `关键位 ${fmt.price(threshold)}`,
         `现价 ${fmt.price(price)}`,
         Number.isFinite(breakPct) ? `突破幅度 ${fmt.pct(breakPct)}` : "",
         Number.isFinite(volumePace) ? `量能进度 ${volumePace.toFixed(2)}x` : `日K量比 ${m.volumeRatio.toFixed(2)}x`,
+        hold.ready ? `站稳分钟 ${hold.count}` : "等待分时站稳",
         `日K评分 ${analysis.score}`
       ].filter(Boolean);
 
-      if (broke && scoreOk && trendOk && heatOk && volumeOk) {
+      if (broke && scoreOk && trendOk && heatOk && volumeOk && hold.ready) {
         const stake = macdOk ? "试仓10%-20%" : "试仓10%";
         return {
           status: "ready",
@@ -1930,6 +1932,22 @@
         stake: "--",
         reason: `当前未站上关键压力 ${fmt.price(threshold)}，盘中不提前给买入信号。下方支撑参考 ${fmt.price(support)}。`,
         tags
+      };
+    }
+
+    function intradayBreakoutHold(threshold, quote) {
+      if (!Number.isFinite(threshold)) return { ready: false, count: 0 };
+      const ticks = state.ticks
+        .filter(item => item && Number.isFinite(item.price) && item.at && typeof item.at.getTime === "function")
+        .sort((a, b) => a.at - b.at);
+      if (!ticks.length) return { ready: true, count: 1 };
+      const end = quote && quote.at && typeof quote.at.getTime === "function" ? quote.at : ticks.at(-1).at;
+      const recent = ticks.filter(item => end - item.at <= 3 * 60 * 1000);
+      const usable = recent.length ? recent : ticks.slice(-3);
+      const above = usable.filter(item => item.price >= threshold).length;
+      return {
+        ready: usable.length < 3 ? (quote && quote.price >= threshold) : above >= Math.min(3, usable.length),
+        count: above
       };
     }
 
