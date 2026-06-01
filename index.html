@@ -2199,7 +2199,7 @@
     function renderTop() {
       const q = currentSnapshot();
       const analysis = state.analysis;
-      const live = isTradingWindow();
+      const live = q && q.source !== "日K" ? isTradingWindow(q.at) : isTradingWindow();
       setConnection(live ? "交易时段监控中" : "非交易时段", live);
       els.quoteSource.textContent = `行情源 ${state.quoteSource}`;
       if (!q) {
@@ -2231,7 +2231,7 @@
     function renderIntradayBreakout() {
       const q = currentSnapshot();
       const signal = buildIntradayBreakoutSignal(state.analysis, q);
-      const live = !!state.quote && isTradingWindow();
+      const live = !!state.quote && isTradingWindow(state.quote.at);
       els.breakoutTime.textContent = q ? `${live ? "盘中" : "非交易"} ${fmt.time(q.at)}` : "--";
       els.breakoutSignal.className = `breakout-main ${signal.cls || ""}`;
       els.breakoutWord.textContent = live || signal.status === "ready" ? signal.word : "等待开盘";
