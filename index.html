@@ -779,7 +779,7 @@
     <header class="topbar">
       <div class="brand">
         <h1>永鼎股份 600105.SH</h1>
-        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v12</div>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v13</div>
       </div>
       <div class="toolbar">
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
@@ -1771,10 +1771,12 @@
       if (!Array.isArray(daily) || daily.length < 150) return null;
       const startIndex = Math.max(129, daily.length - 260);
       const records = [];
+      let score68Streak = 0;
       for (let i = startIndex; i < daily.length; i++) {
         try {
           const analysis = analyzeDaily(daily.slice(0, i + 1));
-          const plan = buildPositionPlan(analysis);
+          score68Streak = analysis.score >= 68 ? score68Streak + 1 : 0;
+          const plan = buildPositionPlan(analysis, { score68Streak });
           records.push({
             index: i,
             date: analysis.latest.date,
@@ -2075,7 +2077,10 @@
     }
 
     function renderPositionPlan(analysis) {
-      const plan = buildPositionPlan(analysis);
+      const latestRecord = state.backtest && state.backtest.records && state.backtest.records.at(-1);
+      const plan = latestRecord && latestRecord.date === analysis.latest.date
+        ? latestRecord.plan
+        : buildPositionPlan(analysis);
       els.positionDate.textContent = analysis.latest.date;
       els.positionPlan.innerHTML = `
         <div class="position-hero">
@@ -2106,13 +2111,21 @@
       `;
     }
 
-    function buildPositionPlan(analysis) {
+    function buildPositionPlan(analysis, options = {}) {
       const m = analysis.metrics;
       const close = analysis.latest.close;
       const support = analysis.levels[0]?.points?.[0]?.value;
       const pressure = analysis.levels[1]?.points?.[0]?.value;
       const supportDist = Number.isFinite(support) ? (close / support - 1) * 100 : NaN;
       const pressureGap = Number.isFinite(pressure) ? (pressure / close - 1) * 100 : NaN;
+      const score68Streak = options.score68Streak ?? (analysis.score >= 68 ? 1 : 0);
+      const macdNotWeak = m.macd.hist >= m.macd.prevHist;
+      const trendLock = m.ma20 > m.ma60
+        && close >= m.ma20
+        && macdNotWeak
+        && analysis.score >= 68
+        && score68Streak >= 3;
+      const overheated = m.rsi > 78 || (Number.isFinite(pressureGap) && pressureGap <= 2);
 
       let target = analysis.score >= 82 ? 75 : analysis.score >= 68 ? 60 : analysis.score >= 52 ? 35 : 10;
       if (close < m.ma60) target -= 15;
@@ -2120,6 +2133,12 @@
       if (m.atrPct > 7) target -= 10;
       if (m.volumeRatio >= 1.2 && close >= m.ma20) target += 5;
       if (m.closeToMa20 > 10) target -= 5;
+      if (trendLock && !overheated) {
+        target = Math.max(target, analysis.score >= 82 ? 70 : 60);
+      }
+      if (trendLock && !overheated && Number.isFinite(pressureGap) && pressureGap > 5 && m.volumeRatio >= 1.05 && m.rsi <= 72) {
+        target += 10;
+      }
       target = Math.round(clamp(target, 0, 85) / 5) * 5;
 
       let action = "维持仓位";
@@ -2130,6 +2149,12 @@
       } else if (m.rsi > 75 || (Number.isFinite(pressureGap) && pressureGap <= 2)) {
         action = "逢高减仓";
         cls = "down";
+      } else if (trendLock && target >= 70) {
+        action = "强势加仓";
+        cls = "up";
+      } else if (trendLock) {
+        action = "趋势锁仓";
+        cls = "up";
       } else if (analysis.score >= 82 && Number.isFinite(pressureGap) && pressureGap > 4) {
         action = "顺势加仓";
         cls = "up";
@@ -2145,19 +2170,27 @@
       const high = Math.min(90, target + 10);
       const reasonBits = [
         `评分 ${analysis.score}`,
+        trendLock ? `强趋势锁仓${score68Streak}日` : "",
         close >= m.ma60 ? "站上MA60" : "低于MA60",
+        macdNotWeak ? "MACD未恶化" : "MACD走弱",
         Number.isFinite(pressureGap) ? `距压力 ${pressureGap.toFixed(2)}%` : "",
         Number.isFinite(supportDist) ? `距支撑 ${supportDist.toFixed(2)}%` : ""
       ].filter(Boolean);
 
       return {
         target,
-        range: `${low}%-${high}% 作为执行带，低于下沿再考虑补，高于上沿先不追。`,
+        range: trendLock
+          ? `${low}%-${high}% 作为执行带，强趋势有效时不轻易低于 ${analysis.score >= 82 ? 70 : 60}%。`
+          : `${low}%-${high}% 作为执行带，低于下沿再考虑补，高于上沿先不追。`,
         action,
         cls,
         reason: reasonBits.join(" / "),
-        addRule: `收盘站稳 ${fmt.price(m.ma60)}，且回踩不破 ${fmt.price(support)}，可向目标仓位靠拢。`,
-        reduceRule: `跌破 ${fmt.price(Math.max(m.ma60 || 0, support || 0))} 或冲高接近 ${fmt.price(pressure)} 但量能不足，优先降到区间下沿。`
+        addRule: trendLock
+          ? `MA20强于MA60且收盘站上MA20，评分连续 ${score68Streak} 日不低于68，可向锁仓仓位靠拢。`
+          : `收盘站稳 ${fmt.price(m.ma60)}，且回踩不破 ${fmt.price(support)}，可向目标仓位靠拢。`,
+        reduceRule: trendLock
+          ? `只有跌破MA20、MACD转弱、RSI过热或贴近 ${fmt.price(pressure)} 压力时，才考虑从锁仓位降下来。`
+          : `跌破 ${fmt.price(Math.max(m.ma60 || 0, support || 0))} 或冲高接近 ${fmt.price(pressure)} 但量能不足，优先降到区间下沿。`
       };
     }
 
