@@ -779,7 +779,7 @@
     <header class="topbar">
       <div class="brand">
         <h1>永鼎股份 600105.SH</h1>
-        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v11</div>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v12</div>
       </div>
       <div class="toolbar">
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
@@ -918,6 +918,11 @@
         </article>
 
         <article class="card">
+          <div class="panel-title">仓位回放</div>
+          <div id="positionReplay" class="replay-list"></div>
+        </article>
+
+        <article class="card">
           <div class="panel-title">信号可信度</div>
           <div id="signalReliability" class="reliability-list"></div>
         </article>
@@ -991,6 +996,7 @@
       backtestSummary: $("backtestSummary"),
       backtestMetrics: $("backtestMetrics"),
       signalReplay: $("signalReplay"),
+      positionReplay: $("positionReplay"),
       signalReliability: $("signalReliability"),
       log: $("log"),
       quoteSource: $("quoteSource"),
@@ -1768,6 +1774,7 @@
       for (let i = startIndex; i < daily.length; i++) {
         try {
           const analysis = analyzeDaily(daily.slice(0, i + 1));
+          const plan = buildPositionPlan(analysis);
           records.push({
             index: i,
             date: analysis.latest.date,
@@ -1775,6 +1782,7 @@
             score: analysis.score,
             signal: analysis.signal,
             signalClass: analysis.signalClass,
+            plan,
             ma60: analysis.metrics.ma60,
             macdHist: analysis.metrics.macd.hist,
             prevMacdHist: analysis.metrics.macd.prevHist
@@ -1785,61 +1793,63 @@
       }
       if (records.length < 30) return null;
 
-      let cash = 1;
-      let shares = 0;
-      let entry = null;
+      let value = 1;
+      let positionPct = 0;
       let peak = 1;
       let maxDrawdown = 0;
-      const trades = [];
+      let positionSum = 0;
+      const positionEvents = [];
       const equity = [{ date: records[0].date, value: 1 }];
 
       for (let i = 0; i < records.length - 1; i++) {
         const signal = records[i];
         const next = records[i + 1];
-        const enter = shares === 0 && signal.score >= 68 && signal.close >= signal.ma60;
-        const exit = shares > 0 && (signal.score < 52 || (signal.close < signal.ma60 && signal.macdHist < signal.prevMacdHist));
+        const dayReturn = signal.close ? (next.close / signal.close - 1) * positionPct : 0;
+        value *= 1 + dayReturn;
+        positionSum += positionPct * 100;
 
-        if (enter) {
-          shares = cash / next.close;
-          cash = 0;
-          entry = { ...next, signalDate: signal.date };
-          trades.push({ type: "buy", date: next.date, price: next.close, score: signal.score, signal: signal.signal });
-        } else if (exit) {
-          cash = shares * next.close;
-          shares = 0;
-          const ret = entry ? (next.close / entry.close - 1) * 100 : 0;
-          const holdDays = entry ? next.index - entry.index : 0;
-          trades.push({ type: "sell", date: next.date, price: next.close, score: signal.score, signal: signal.signal, ret, holdDays });
-          entry = null;
+        const targetPct = signal.plan.target / 100;
+        const deltaPct = (targetPct - positionPct) * 100;
+        if (Math.abs(deltaPct) >= 20) {
+          positionEvents.push({
+            date: next.date,
+            signalDate: signal.date,
+            price: next.close,
+            from: Math.round(positionPct * 100),
+            to: signal.plan.target,
+            delta: Math.round(deltaPct),
+            action: deltaPct > 0 ? "加仓" : "减仓",
+            cls: deltaPct > 0 ? "up" : "down",
+            signal: signal.signal,
+            score: signal.score,
+            reason: signal.plan.reason
+          });
         }
+        positionPct = targetPct;
 
-        const value = shares > 0 ? shares * next.close : cash;
         peak = Math.max(peak, value);
         maxDrawdown = Math.min(maxDrawdown, peak ? (value / peak - 1) * 100 : 0);
-        equity.push({ date: next.date, value });
+        equity.push({ date: next.date, value, position: Math.round(positionPct * 100) });
       }
 
       const last = records.at(-1);
-      const completed = trades.filter(trade => trade.type === "sell");
-      const winners = completed.filter(trade => trade.ret > 0).length;
       const strategyReturn = (equity.at(-1).value - 1) * 100;
       const holdReturn = (last.close / records[0].close - 1) * 100;
-      const avgHoldDays = completed.length ? average(completed.map(trade => trade.holdDays)) : NaN;
+      const avgPosition = records.length > 1 ? positionSum / (records.length - 1) : NaN;
 
       return {
         start: records[0].date,
         end: last.date,
         records,
         equity,
-        trades,
+        positionEvents,
         strategyReturn,
         holdReturn,
         excessReturn: strategyReturn - holdReturn,
         maxDrawdown,
-        winRate: completed.length ? winners / completed.length * 100 : NaN,
-        tradeCount: completed.length,
-        avgHoldDays,
-        currentPosition: shares > 0 ? "持仓" : "空仓",
+        tradeCount: positionEvents.length,
+        avgPosition,
+        currentPosition: `${last.plan.target}%`,
         reliability: calcSignalReliability(records)
       };
     }
@@ -1874,12 +1884,6 @@
 
     function signalReplayRows(backtest) {
       if (!backtest) return [];
-      const tradeRows = backtest.trades.map(trade => ({
-        date: trade.date,
-        title: trade.type === "buy" ? "买入信号" : "卖出信号",
-        detail: `${trade.signal} / 触发分 ${trade.score} / 价位 ${fmt.price(trade.price)}`,
-        value: trade.type === "sell" ? fmt.pct(trade.ret) : backtest.currentPosition
-      }));
       const changes = [];
       for (let i = 1; i < backtest.records.length; i++) {
         const prev = backtest.records[i - 1];
@@ -1893,10 +1897,24 @@
           });
         }
       }
-      return [...tradeRows, ...changes]
+      return changes
         .sort((a, b) => a.date.localeCompare(b.date))
         .slice(-10)
         .reverse();
+    }
+
+    function positionReplayRows(backtest) {
+      if (!backtest) return [];
+      return (backtest.positionEvents || [])
+        .slice(-12)
+        .reverse()
+        .map(event => ({
+          date: event.date,
+          title: `${event.action} ${Math.abs(event.delta)}%`,
+          detail: `${event.signalDate} 收盘信号 / ${event.signal} / ${event.reason}`,
+          value: `${event.from}%→${event.to}%`,
+          cls: event.cls
+        }));
     }
 
     function pctClass(value, inverse = false) {
@@ -2148,8 +2166,9 @@
       if (!bt) {
         if (els.backtestWindow) els.backtestWindow.textContent = "--";
         if (els.backtestSummary) els.backtestSummary.innerHTML = `<div class="bt-line"><span>等待日K数据</span><strong>--</strong></div>`;
-        if (els.backtestMetrics) els.backtestMetrics.innerHTML = emptyMetrics(["策略收益", "持有收益", "最大回撤", "胜率"]);
+        if (els.backtestMetrics) els.backtestMetrics.innerHTML = emptyMetrics(["策略收益", "持有收益", "最大回撤", "调仓次数"]);
         if (els.signalReplay) els.signalReplay.innerHTML = emptyRows(["信号", "交易", "切换"], "replay-row");
+        if (els.positionReplay) els.positionReplay.innerHTML = emptyRows(["仓位"], "replay-row");
         if (els.signalReliability) els.signalReliability.innerHTML = "";
         return;
       }
@@ -2157,23 +2176,23 @@
       els.backtestWindow.textContent = `${bt.start} - ${bt.end}`;
       els.backtestSummary.innerHTML = `
         <div class="bt-line">
-          <span>当前策略仓位</span>
-          <strong class="${bt.currentPosition === "持仓" ? "up" : "neutral"}">${bt.currentPosition}</strong>
-          <i class="bt-badge">T+1收盘复盘</i>
+          <span>当前目标仓位</span>
+          <strong class="${parseFloat(bt.currentPosition) >= 50 ? "up" : parseFloat(bt.currentPosition) <= 20 ? "down" : "neutral"}">${bt.currentPosition}</strong>
+          <i class="bt-badge">按目标仓位回测</i>
         </div>
         <div class="bt-line">
           <span>相对单纯持有</span>
           <strong class="${pctClass(bt.excessReturn)}">${fmt.pct(bt.excessReturn)}</strong>
-          <i class="bt-badge">${bt.tradeCount} 笔完成交易</i>
+          <i class="bt-badge">${bt.tradeCount} 次调仓</i>
         </div>
       `;
       els.backtestMetrics.innerHTML = [
         metricCell("策略收益", fmt.pct(bt.strategyReturn), pctClass(bt.strategyReturn)),
         metricCell("持有收益", fmt.pct(bt.holdReturn), pctClass(bt.holdReturn)),
         metricCell("最大回撤", fmt.pct(bt.maxDrawdown), pctClass(bt.maxDrawdown, true)),
-        metricCell("胜率", fmt.pct(bt.winRate), pctClass((bt.winRate || 0) - 50)),
-        metricCell("平均持有", Number.isFinite(bt.avgHoldDays) ? `${bt.avgHoldDays.toFixed(0)}天` : "--", ""),
-        metricCell("交易次数", `${bt.tradeCount}`, "")
+        metricCell("调仓次数", `${bt.tradeCount}`, ""),
+        metricCell("平均仓位", Number.isFinite(bt.avgPosition) ? `${bt.avgPosition.toFixed(0)}%` : "--", ""),
+        metricCell("当前仓位", bt.currentPosition, "")
       ].join("");
 
       els.signalReplay.innerHTML = signalReplayRows(bt).map(row => `
@@ -2183,6 +2202,14 @@
           <strong class="${typeof row.value === "string" && row.value.includes("-") ? "down" : "up"}">${row.value}</strong>
         </div>
       `).join("") || emptyRows(["信号"], "replay-row");
+
+      els.positionReplay.innerHTML = positionReplayRows(bt).map(row => `
+        <div class="replay-row">
+          <span class="small">${row.date.slice(5)}</span>
+          <em><b>${row.title}</b><br>${row.detail}</em>
+          <strong class="${row.cls}">${row.value}</strong>
+        </div>
+      `).join("") || emptyRows(["仓位"], "replay-row");
 
       els.signalReliability.innerHTML = `
         <div class="reliability-row">
@@ -2313,6 +2340,7 @@
       });
       drawLine(ctx, ma20Series.map((v, i) => [x(i), y(v)]), "#efc55f", 1.5);
       drawLine(ctx, ma60Series.map((v, i) => [x(i), y(v)]), "#b59cff", 1.5);
+      drawPositionMarkers(ctx, data, state.backtest && state.backtest.positionEvents, x, y);
       drawPriceLabels(ctx, w, h, yMin, yMax);
       ctx.fillStyle = "rgba(255,255,255,.5)";
       ctx.font = "12px Microsoft YaHei, sans-serif";
@@ -2320,6 +2348,37 @@
       ctx.fillText(data[0].date, left, h - 16);
       ctx.textAlign = "right";
       ctx.fillText(data[data.length - 1].date, w - right, h - 16);
+    }
+
+    function drawPositionMarkers(ctx, data, events, x, y) {
+      if (!Array.isArray(events) || !events.length) return;
+      const indexByDate = new Map(data.map((row, index) => [row.date, index]));
+      const visible = events.filter(event => indexByDate.has(event.date));
+      if (!visible.length) return;
+
+      ctx.font = "11px Microsoft YaHei, sans-serif";
+      ctx.textAlign = "center";
+      visible.forEach(event => {
+        const index = indexByDate.get(event.date);
+        const row = data[index];
+        const cx = x(index);
+        const isAdd = event.delta > 0;
+        const cy = isAdd ? y(row.low) + 16 : y(row.high) - 16;
+        ctx.fillStyle = isAdd ? "#ee6262" : "#34c08a";
+        ctx.beginPath();
+        if (isAdd) {
+          ctx.moveTo(cx, cy - 7);
+          ctx.lineTo(cx - 6, cy + 5);
+          ctx.lineTo(cx + 6, cy + 5);
+        } else {
+          ctx.moveTo(cx, cy + 7);
+          ctx.lineTo(cx - 6, cy - 5);
+          ctx.lineTo(cx + 6, cy - 5);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillText(isAdd ? `+${Math.abs(event.delta)}%` : `-${Math.abs(event.delta)}%`, cx, isAdd ? cy + 18 : cy - 10);
+      });
     }
 
     function drawGrid(ctx, w, h) {
