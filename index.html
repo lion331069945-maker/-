@@ -378,22 +378,90 @@
 
     .level-row {
       display: grid;
-      grid-template-columns: 92px 1fr;
-      gap: 10px;
+      grid-template-columns: 96px 1fr;
+      gap: 12px;
       align-items: start;
-      padding: 10px 0;
-      border-top: 1px solid var(--line);
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-left-width: 4px;
+      border-radius: 8px;
+      background: rgba(255,255,255,.028);
     }
 
     .level-row:first-child {
-      border-top: 0;
-      padding-top: 0;
+      border-top: 1px solid var(--line);
     }
 
     .level-row b {
       font-size: 14px;
       white-space: nowrap;
     }
+
+    .level-row.support {
+      border-left-color: var(--green);
+      background: linear-gradient(90deg, rgba(52,192,138,.13), rgba(255,255,255,.025));
+    }
+
+    .level-row.pressure {
+      border-left-color: var(--red);
+      background: linear-gradient(90deg, rgba(238,98,98,.13), rgba(255,255,255,.025));
+    }
+
+    .level-row.buy {
+      border-left-color: var(--cyan);
+      background: linear-gradient(90deg, rgba(61,213,193,.13), rgba(255,255,255,.025));
+    }
+
+    .level-row.sell {
+      border-left-color: var(--amber);
+      background: linear-gradient(90deg, rgba(239,197,95,.16), rgba(255,255,255,.025));
+    }
+
+    .level-content {
+      display: grid;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .level-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .level-chip {
+      display: inline-grid;
+      grid-template-columns: auto auto;
+      align-items: center;
+      gap: 7px;
+      min-height: 30px;
+      padding: 0 9px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(0,0,0,.16);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .level-chip strong {
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .level-chip em {
+      font-style: normal;
+      color: var(--muted);
+    }
+
+    .level-chip.up { border-color: rgba(238,98,98,.44); }
+    .level-chip.up em { color: var(--red); }
+    .level-chip.down { border-color: rgba(52,192,138,.44); }
+    .level-chip.down em { color: var(--green); }
+    .level-chip.near {
+      border-color: rgba(239,197,95,.58);
+      box-shadow: 0 0 0 3px rgba(239,197,95,.08);
+    }
+    .level-chip.near em { color: var(--amber); }
 
     .factor-list {
       display: grid;
@@ -1270,7 +1338,7 @@
       const rawScore = trendScore * 0.30 + momentumScore * 0.20 + volumeScore * 0.16 + positionScore * 0.16 + riskScore * 0.18;
       const riskBlock = latest.close < ma60 && ma20 < ma60 || rsi > 82 || atrPct > 8.5;
       const score = Math.round(clamp(rawScore, 0, riskBlock ? 72 : 100));
-      const signal = score >= 82 ? "积极跟踪" : score >= 68 ? "等待确认" : score >= 52 ? "区间观察" : "风险防守";
+      const signal = score >= 82 ? "积极跟踪" : score >= 68 ? "拿着别动" : score >= 52 ? "区间观察" : "风险防守";
       const signalClass = score >= 82 ? "up" : score >= 68 ? "neutral" : score >= 52 ? "blue" : "down";
 
       const supports = [
@@ -1356,10 +1424,43 @@
           { label: "一个月", text: month }
         ],
         levels: [
-          { label: "关键支撑", text: `${support1.label} ${fmt.price(support1.value)}；下方防守 ${support2.label} ${fmt.price(support2.value)}` },
-          { label: "关键压力", text: `${pressure1.label} ${fmt.price(pressure1.value)}；强压力 ${pressure2.label} ${fmt.price(pressure2.value)}` },
-          { label: "观察买点", text: `回踩 ${fmt.price(buyPullbackLow)}-${fmt.price(buyPullbackHigh)} 不破并缩量企稳；或放量收盘站上 ${fmt.price(breakoutLine)}` },
-          { label: "关键卖点", text: `跌破 ${fmt.price(stopLine)} 需要防守；${sellStrength} 可减仓观察；${trendSell}` }
+          {
+            label: "关键支撑",
+            tone: "support",
+            text: `${support1.label} ${fmt.price(support1.value)}；下方防守 ${support2.label} ${fmt.price(support2.value)}`,
+            points: [
+              { label: support1.label, value: support1.value },
+              { label: `防守 ${support2.label}`, value: support2.value }
+            ]
+          },
+          {
+            label: "关键压力",
+            tone: "pressure",
+            text: `${pressure1.label} ${fmt.price(pressure1.value)}；强压力 ${pressure2.label} ${fmt.price(pressure2.value)}`,
+            points: [
+              { label: pressure1.label, value: pressure1.value },
+              { label: `强压 ${pressure2.label}`, value: pressure2.value }
+            ]
+          },
+          {
+            label: "观察买点",
+            tone: "buy",
+            text: `回踩 ${fmt.price(buyPullbackLow)}-${fmt.price(buyPullbackHigh)} 不破并缩量企稳；或放量收盘站上 ${fmt.price(breakoutLine)}`,
+            points: [
+              { label: "回踩下沿", value: buyPullbackLow },
+              { label: "回踩上沿", value: buyPullbackHigh },
+              { label: "突破线", value: breakoutLine }
+            ]
+          },
+          {
+            label: "关键卖点",
+            tone: "sell",
+            text: `跌破 ${fmt.price(stopLine)} 需要防守；${sellStrength} 可减仓观察；${trendSell}`,
+            points: [
+              { label: "防守线", value: stopLine },
+              { label: "趋势线", value: Math.max(ma60 || 0, support1.value) }
+            ]
+          }
         ],
         metrics: {
           ma5, ma10, ma20, ma60, ma120, ema20, ema60,
@@ -1375,6 +1476,33 @@
 
     function tagFor(ok, good, bad) {
       return { text: ok ? good : bad, cls: ok ? "ok" : "warn" };
+    }
+
+    function levelDistance(current, target) {
+      if (!Number.isFinite(current) || !Number.isFinite(target) || current <= 0) {
+        return { cls: "", text: "--" };
+      }
+      const pct = (target / current - 1) * 100;
+      const abs = Math.abs(pct);
+      return {
+        cls: abs <= 1 ? "near" : pct >= 0 ? "up" : "down",
+        text: `${pct >= 0 ? "需涨" : "需跌"} ${abs.toFixed(2)}%`
+      };
+    }
+
+    function renderLevelChips(item, current) {
+      return (item.points || [])
+        .filter(point => Number.isFinite(point.value))
+        .map(point => {
+          const dist = levelDistance(current, point.value);
+          return `
+            <span class="level-chip ${dist.cls}">
+              <strong>${point.label} ${fmt.price(point.value)}</strong>
+              <em>${dist.text}</em>
+            </span>
+          `;
+        })
+        .join("");
     }
 
     function buildReason(ctx) {
@@ -1502,9 +1630,12 @@
         </div>
       `).join("");
       els.levels.innerHTML = analysis.levels.map(item => `
-        <div class="level-row">
+        <div class="level-row ${item.tone || ""}">
           <b>${item.label}</b>
-          <span class="small">${item.text}</span>
+          <div class="level-content">
+            <span class="small">${item.text}</span>
+            <div class="level-chips">${renderLevelChips(item, analysis.latest.close)}</div>
+          </div>
         </div>
       `).join("");
       els.factors.innerHTML = analysis.factors.map(factor => `
