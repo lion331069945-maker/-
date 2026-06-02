@@ -1857,21 +1857,23 @@
         };
       }
 
-      const pressure = analysis.levels[1]?.points?.[0]?.value;
-      const support = analysis.levels[0]?.points?.[0]?.value;
-      const m = analysis.metrics;
+      const base = intradayBreakoutBaseAnalysis(analysis, quote);
+      const breakoutLine = base.levels[2]?.points?.find(point => point.label === "突破线")?.value;
+      const pressure = base.levels[1]?.points?.[0]?.value;
+      const support = base.levels[0]?.points?.[0]?.value;
+      const m = base.metrics;
       const price = quote.price;
-      const threshold = Number.isFinite(pressure) ? pressure : m.high20;
+      const threshold = Number.isFinite(breakoutLine) ? breakoutLine : Number.isFinite(pressure) ? pressure : m.high20;
       const breakPct = Number.isFinite(threshold) ? (price / threshold - 1) * 100 : NaN;
-      const scoreOk = analysis.score >= 60;
-      const trendOk = price >= m.ma20 && m.ma20 >= m.ma60;
-      const macdOk = m.macd.hist >= m.macd.prevHist || analysis.score >= 68;
+      const scoreOk = base.score >= 60;
+      const trendOk = price >= Math.min(m.ma20, threshold) && m.ma20 >= m.ma60;
+      const macdOk = m.macd.hist >= m.macd.prevHist || base.score >= 68;
       const heatOk = m.rsi < 78;
       const volumePace = intradayVolumePace(quote);
       const volumeOk = Number.isFinite(volumePace) ? volumePace >= 1.35 : m.volumeRatio >= 1.1;
-      const broke = Number.isFinite(breakPct) && breakPct >= 0.15;
+      const broke = Number.isFinite(threshold) && price >= threshold;
       const nearBreak = Number.isFinite(breakPct) && breakPct > -1.2;
-      const failed = Number.isFinite(threshold) && price < threshold && analysis.latest.close >= threshold;
+      const failed = Number.isFinite(threshold) && price < threshold && base.latest.close >= threshold;
       const hold = intradayBreakoutHold(threshold, quote);
       const tags = [
         `关键位 ${fmt.price(threshold)}`,
@@ -1879,7 +1881,8 @@
         Number.isFinite(breakPct) ? `突破幅度 ${fmt.pct(breakPct)}` : "",
         Number.isFinite(volumePace) ? `量能进度 ${volumePace.toFixed(2)}x` : `日K量比 ${m.volumeRatio.toFixed(2)}x`,
         hold.ready ? `站稳分钟 ${hold.count}` : "等待分时站稳",
-        `日K评分 ${analysis.score}`
+        `日K评分 ${base.score}`,
+        `基准日K ${base.latest.date}`
       ].filter(Boolean);
 
       if (broke && scoreOk && trendOk && heatOk && volumeOk && hold.ready) {
@@ -1933,6 +1936,29 @@
         reason: `当前未站上关键压力 ${fmt.price(threshold)}，盘中不提前给买入信号。下方支撑参考 ${fmt.price(support)}。`,
         tags
       };
+    }
+
+    function intradayBreakoutBaseAnalysis(analysis, quote) {
+      const daily = state.daily;
+      if (!Array.isArray(daily) || daily.length < 2 || !quote || !quote.at) return analysis;
+      const latest = daily[daily.length - 1];
+      const quoteDate = formatTradeDate(quote.at);
+      if (latest && latest.date === quoteDate && isTradingWindow(quote.at)) {
+        try {
+          return analyzeDaily(daily.slice(0, -1));
+        } catch (error) {
+          return analysis;
+        }
+      }
+      return analysis;
+    }
+
+    function formatTradeDate(date) {
+      if (!date || typeof date.getFullYear !== "function") return "";
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
     }
 
     function intradayBreakoutHold(threshold, quote) {
