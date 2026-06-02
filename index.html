@@ -836,7 +836,7 @@
     <header class="topbar">
       <div class="brand">
         <h1>永鼎股份 600105.SH</h1>
-        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v14</div>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v17</div>
       </div>
       <div class="toolbar">
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
@@ -1939,6 +1939,9 @@
     }
 
     function intradayBreakoutBaseAnalysis(analysis, quote) {
+      if (analysis && analysis.isIntraday && state.analysis) {
+        return intradayBreakoutBaseAnalysis(state.analysis, quote);
+      }
       const daily = state.daily;
       if (!Array.isArray(daily) || daily.length < 2 || !quote || !quote.at) return analysis;
       const latest = daily[daily.length - 1];
@@ -2213,6 +2216,77 @@
       });
     }
 
+    function activeAnalysis() {
+      return buildIntradayAnalysis() || state.analysis;
+    }
+
+    function buildIntradayAnalysis() {
+      if (!state.analysis || !state.quote || !Array.isArray(state.daily) || state.daily.length < 2) return null;
+      const rows = buildLiveDailyRows(state.daily, state.quote);
+      if (!rows || rows.length < 2) return null;
+      try {
+        const analysis = analyzeDaily(rows);
+        analysis.isIntraday = true;
+        analysis.baseDate = state.analysis.latest.date;
+        analysis.score68Streak = score68Streak(rows);
+        analysis.positionPlan = buildPositionPlan(analysis, { score68Streak: analysis.score68Streak });
+        return analysis;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function buildLiveDailyRows(daily, quote) {
+      if (!quote || !quote.at || typeof quote.at.getFullYear !== "function") return null;
+      const quoteDate = formatTradeDate(quote.at);
+      if (!quoteDate) return null;
+      const rows = daily.map(row => ({ ...row }));
+      const latest = rows[rows.length - 1];
+      const sameDay = latest && latest.date === quoteDate;
+      const prev = sameDay ? rows[rows.length - 2] : latest;
+      const base = sameDay ? latest : {
+        date: quoteDate,
+        open: Number.isFinite(quote.open) ? quote.open : Number.isFinite(quote.prevClose) ? quote.prevClose : prev.close,
+        high: Number.isFinite(quote.high) ? quote.high : quote.price,
+        low: Number.isFinite(quote.low) ? quote.low : quote.price,
+        close: quote.price,
+        volume: 0,
+        amount: 0,
+        turnover: NaN
+      };
+      const open = Number.isFinite(base.open) ? base.open : Number.isFinite(quote.open) ? quote.open : prev.close;
+      const high = Math.max(
+        ...[base.high, quote.high, quote.price, open].filter(Number.isFinite)
+      );
+      const low = Math.min(
+        ...[base.low, quote.low, quote.price, open].filter(Number.isFinite)
+      );
+      const merged = {
+        ...base,
+        date: quoteDate,
+        open,
+        high,
+        low,
+        close: quote.price,
+        volume: Number.isFinite(quote.volume) ? quote.volume : base.volume,
+        amount: Number.isFinite(quote.turnover) ? quote.turnover : base.amount,
+        turnover: Number.isFinite(base.turnover) ? base.turnover : Number.isFinite(quote.turnover) ? quote.turnover : NaN
+      };
+      if (sameDay) rows[rows.length - 1] = merged;
+      else rows.push(merged);
+      return rows;
+    }
+
+    function score68Streak(rows) {
+      let streak = 0;
+      const start = Math.max(129, rows.length - 40);
+      for (let i = start; i < rows.length; i++) {
+        const analysis = analyzeDaily(rows.slice(0, i + 1));
+        streak = analysis.score >= 68 ? streak + 1 : 0;
+      }
+      return streak;
+    }
+
     function renderAll() {
       renderTop();
       renderIntradayBreakout();
@@ -2224,7 +2298,7 @@
 
     function renderTop() {
       const q = currentSnapshot();
-      const analysis = state.analysis;
+      const analysis = activeAnalysis();
       const live = q && q.source !== "日K" ? isTradingWindow(q.at) : isTradingWindow();
       setConnection(live ? "交易时段监控中" : "非交易时段", live);
       els.quoteSource.textContent = `行情源 ${state.quoteSource}`;
@@ -2269,7 +2343,7 @@
     }
 
     function renderAnalysis() {
-      const analysis = state.analysis;
+      const analysis = activeAnalysis();
       if (!analysis) {
         els.signalWord.textContent = "等待";
         els.signalReason.textContent = "日K数据读取中";
@@ -2293,7 +2367,7 @@
       els.signalReason.textContent = analysis.reason;
       els.score.textContent = String(analysis.score);
       els.score.style.setProperty("--score", analysis.score);
-      els.analysisTime.textContent = analysis.latest.date;
+      els.analysisTime.textContent = analysis.isIntraday ? `${analysis.latest.date} 盘中` : analysis.latest.date;
       els.evidenceTags.innerHTML = analysis.tags.map(tag => `<span class="tag ${tag.cls}">${tag.text}</span>`).join("");
       renderPositionPlan(analysis);
       els.horizon.innerHTML = analysis.horizons.map(item => `
@@ -2322,9 +2396,8 @@
 
     function renderPositionPlan(analysis) {
       const latestRecord = state.backtest && state.backtest.records && state.backtest.records.at(-1);
-      const plan = latestRecord && latestRecord.date === analysis.latest.date
-        ? latestRecord.plan
-        : buildPositionPlan(analysis);
+      const plan = analysis.positionPlan
+        || (latestRecord && latestRecord.date === analysis.latest.date ? latestRecord.plan : buildPositionPlan(analysis));
       els.positionDate.textContent = analysis.latest.date;
       els.positionPlan.innerHTML = `
         <div class="position-hero">
