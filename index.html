@@ -933,7 +933,7 @@
           </select>
           <h1 id="stockTitle">永鼎股份 600105.SH</h1>
         </div>
-        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v19</div>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v20</div>
       </div>
       <div class="toolbar">
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
@@ -1177,6 +1177,8 @@
     const REFRESH_MS = 5000;
     const DAILY_REFRESH_MS = 30 * 60 * 1000;
     const MAX_INTRADAY_POINTS = 320;
+    const BREAKOUT_CONFIRM_MINUTES = 3;
+    const SUPPORT_CONFIRM_MINUTES = 5;
 
     const state = {
       quote: null,
@@ -1296,7 +1298,7 @@
       els.stockTitle.textContent = stockLabel();
       els.stockSelect.value = STOCK.code;
       els.intradayWatermark.textContent = STOCK.code;
-      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v19`;
+      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v20`;
       state.currentPosition = clamp(Number(localStorage.getItem(positionCacheKey()) || 0), 0, 100);
       els.currentPositionInput.value = String(state.currentPosition);
       els.intradayHint.textContent = `打开后回填当天 9:30 至当前分钟线 · 价格 / 均价 / EMA13`;
@@ -2099,21 +2101,56 @@
       const broke = Number.isFinite(threshold) && price >= threshold;
       const nearBreak = Number.isFinite(breakPct) && breakPct > -1.2;
       const failed = Number.isFinite(threshold) && price < threshold && base.latest.close >= threshold;
-      const hold = intradayBreakoutHold(threshold, quote);
+      const breakoutTimer = intradayLevelTimer({
+        level: threshold,
+        quote,
+        requiredMinutes: BREAKOUT_CONFIRM_MINUTES,
+        test: item => item.price >= threshold
+      });
+      const supportTimer = intradayLevelTimer({
+        level: support,
+        quote,
+        requiredMinutes: SUPPORT_CONFIRM_MINUTES,
+        test: item => item.price >= support && item.price <= support * 1.018
+      });
       const type = classifyStockType(state.daily, base);
       const filter = falseBreakoutFilter(base, quote, type);
+      const atSupport = Number.isFinite(support) && price >= support && price <= support * 1.018;
+      const supportBroken = Number.isFinite(support) && price < support;
       const tags = [
         `关键位 ${fmt.price(threshold)}`,
         `现价 ${fmt.price(price)}`,
         Number.isFinite(breakPct) ? `突破幅度 ${fmt.pct(breakPct)}` : "",
         Number.isFinite(volumePace) ? `量能进度 ${volumePace.toFixed(2)}x` : `日K量比 ${m.volumeRatio.toFixed(2)}x`,
-        hold.ready ? `站稳分钟 ${hold.count}` : "等待分时站稳",
+        `突破计时 ${breakoutTimer.minutes.toFixed(1)}/${BREAKOUT_CONFIRM_MINUTES}分`,
+        Number.isFinite(support) ? `回踩计时 ${supportTimer.minutes.toFixed(1)}/${SUPPORT_CONFIRM_MINUTES}分` : "",
         `日K评分 ${base.score}`,
         `基准日K ${base.latest.date}`,
         `类型 ${type.label}`,
         filter.blockReady ? "假突破过滤" : ""
       ].filter(Boolean);
 
+      if (supportBroken) {
+        return {
+          status: "fail",
+          cls: "fail",
+          word: "减仓",
+          stake: "防守",
+          reason: `实时价跌破关键支撑 ${fmt.price(support)}，回踩计时失败，优先按减仓或停止加仓处理。`,
+          tags
+        };
+      }
+      if (atSupport && supportTimer.ready && base.score >= 60 && !filter.blockReady) {
+        const cautious = type.label === "高位异动股" || type.label === "跌停修复股" || type.label === "退潮风险股";
+        return {
+          status: "ready",
+          cls: "ready",
+          word: "加仓",
+          stake: cautious ? "加仓5%" : "加仓10%",
+          reason: `价格回踩关键支撑 ${fmt.price(support)} 后已连续承接 ${supportTimer.minutes.toFixed(1)} 分钟，支撑未破，可按仓位管理小幅加仓。`,
+          tags
+        };
+      }
       if (broke && scoreOk && trendOk && filter.blockReady) {
         return {
           status: "watch",
@@ -2124,17 +2161,17 @@
           tags
         };
       }
-      if (broke && scoreOk && trendOk && heatOk && volumeOk && hold.ready) {
+      if (broke && scoreOk && trendOk && heatOk && volumeOk && breakoutTimer.ready) {
         const cautious = type.label === "高位异动股" || type.label === "跌停修复股" || type.label === "退潮风险股";
         const stake = cautious ? "试仓5%-10%" : macdOk ? "试仓10%-20%" : "试仓10%";
         return {
           status: "ready",
           cls: "ready",
-          word: "盘中突破",
+          word: "买入",
           stake,
           reason: macdOk
-            ? `实时价已突破 ${fmt.price(threshold)}，量能跟上，日K底分允许提前试仓；收盘站稳后再交给仓位管理加到目标仓。`
-            : `实时价已放量突破 ${fmt.price(threshold)}，但MACD仍需确认，只允许小试仓；跌回关键位应撤销试仓。`,
+            ? `实时价已突破 ${fmt.price(threshold)} 并连续站稳 ${breakoutTimer.minutes.toFixed(1)} 分钟，量能跟上，信号升级为买入。`
+            : `实时价已突破 ${fmt.price(threshold)} 并完成计时，但MACD仍需确认，只允许小试仓；跌回关键位应撤销试仓。`,
           tags
         };
       }
@@ -2143,8 +2180,18 @@
           status: "watch",
           cls: "watch",
           word: "突破观察",
-          stake: "先不追",
-          reason: `价格已碰过关键位，但量能、MACD或热度条件不足，等回踩不破或收盘确认。`,
+          stake: "计时中",
+          reason: `价格已站上关键位 ${fmt.price(threshold)}，正在计时；连续站稳 ${BREAKOUT_CONFIRM_MINUTES} 分钟且量能达标后才升级为买入。`,
+          tags
+        };
+      }
+      if (atSupport && base.score >= 60) {
+        return {
+          status: "watch",
+          cls: "watch",
+          word: "回踩观察",
+          stake: "计时中",
+          reason: `价格回到关键支撑 ${fmt.price(support)} 附近，正在观察承接；连续 ${SUPPORT_CONFIRM_MINUTES} 分钟不破后才升级为加仓。`,
           tags
         };
       }
@@ -2204,19 +2251,36 @@
       return `${y}-${m}-${d}`;
     }
 
-    function intradayBreakoutHold(threshold, quote) {
-      if (!Number.isFinite(threshold)) return { ready: false, count: 0 };
+    function intradayLevelTimer({ level, quote, requiredMinutes, test }) {
+      if (!Number.isFinite(level) || typeof test !== "function") {
+        return { ready: false, minutes: 0, since: null };
+      }
       const ticks = state.ticks
         .filter(item => item && Number.isFinite(item.price) && item.at && typeof item.at.getTime === "function")
         .sort((a, b) => a.at - b.at);
-      if (!ticks.length) return { ready: true, count: 1 };
       const end = quote && quote.at && typeof quote.at.getTime === "function" ? quote.at : ticks.at(-1).at;
-      const recent = ticks.filter(item => end - item.at <= 3 * 60 * 1000);
-      const usable = recent.length ? recent : ticks.slice(-3);
-      const above = usable.filter(item => item.price >= threshold).length;
+      const quotePoint = quote && Number.isFinite(quote.price) && end
+        ? { ...quote, at: end }
+        : null;
+      const byTime = new Map();
+      ticks.forEach(item => byTime.set(item.at.getTime(), item));
+      if (quotePoint) byTime.set(quotePoint.at.getTime(), quotePoint);
+      const points = [...byTime.values()]
+        .filter(item => item.at <= end)
+        .sort((a, b) => a.at - b.at);
+      if (!points.length || !test(points.at(-1))) {
+        return { ready: false, minutes: 0, since: null };
+      }
+      let start = points.at(-1).at;
+      for (let i = points.length - 2; i >= 0; i--) {
+        if (!test(points[i])) break;
+        start = points[i].at;
+      }
+      const minutes = Math.max(0, (end - start) / 60000);
       return {
-        ready: usable.length < 3 ? (quote && quote.price >= threshold) : above >= Math.min(3, usable.length),
-        count: above
+        ready: minutes >= requiredMinutes,
+        minutes,
+        since: start
       };
     }
 
