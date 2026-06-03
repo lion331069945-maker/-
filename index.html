@@ -606,6 +606,71 @@
       margin-top: 12px;
     }
 
+    .position-input {
+      display: grid;
+      grid-template-columns: auto minmax(80px, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      margin-top: 12px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(0,0,0,.14);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .position-input input {
+      width: 100%;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 0 10px;
+      outline: none;
+    }
+
+    .position-input input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(108,167,255,.12);
+    }
+
+    .insight-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .insight-row {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--blue);
+      border-radius: 8px;
+      background: rgba(255,255,255,.028);
+    }
+
+    .insight-row.up { border-left-color: var(--red); }
+    .insight-row.down { border-left-color: var(--green); }
+    .insight-row.neutral { border-left-color: var(--amber); }
+    .insight-row.bad { border-left-color: var(--red); background: linear-gradient(90deg, rgba(238,98,98,.12), rgba(255,255,255,.025)); }
+    .insight-row.warn { border-left-color: var(--amber); background: linear-gradient(90deg, rgba(239,197,95,.12), rgba(255,255,255,.025)); }
+
+    .insight-row b {
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .insight-row span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
     .position-hero {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -847,6 +912,7 @@
       .panel-head { flex-direction: column; }
       .legend { justify-content: flex-start; }
       .horizon-row, .level-row { grid-template-columns: 1fr; }
+      .insight-row { grid-template-columns: 1fr; }
       .bt-line { grid-template-columns: 1fr; }
       .bt-grid { grid-template-columns: 1fr; }
       .position-hero, .position-detail { grid-template-columns: 1fr; }
@@ -867,7 +933,7 @@
           </select>
           <h1 id="stockTitle">永鼎股份 600105.SH</h1>
         </div>
-        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v18</div>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v19</div>
       </div>
       <div class="toolbar">
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
@@ -978,10 +1044,39 @@
 
         <article class="card">
           <div class="panel-head">
+            <div class="panel-title">股票类型识别</div>
+            <div id="stockTypeDate" class="small">--</div>
+          </div>
+          <div id="stockTypePanel" class="insight-list"></div>
+        </article>
+
+        <article class="card">
+          <div class="panel-head">
+            <div class="panel-title">信号可信度</div>
+            <div id="qualityGrade" class="small">--</div>
+          </div>
+          <div id="signalQualityPanel" class="insight-list"></div>
+        </article>
+
+        <article class="card">
+          <div class="panel-head">
             <div class="panel-title">仓位管理</div>
             <div id="positionDate" class="small">--</div>
           </div>
+          <div class="position-input">
+            <label for="currentPositionInput">当前仓位</label>
+            <input id="currentPositionInput" type="number" min="0" max="100" step="5" value="0">
+            <span>%</span>
+          </div>
           <div id="positionPlan" class="position-plan"></div>
+        </article>
+
+        <article class="card">
+          <div class="panel-head">
+            <div class="panel-title">明日预案</div>
+            <div id="tomorrowPlanDate" class="small">--</div>
+          </div>
+          <div id="tomorrowPlan" class="levels"></div>
         </article>
 
         <article class="card">
@@ -1000,6 +1095,14 @@
         <article class="card">
           <div class="panel-title">核心指标</div>
           <div id="factors" class="factor-list"></div>
+        </article>
+
+        <article class="card">
+          <div class="panel-head">
+            <div class="panel-title">风险事件提示</div>
+            <div id="riskEventDate" class="small">--</div>
+          </div>
+          <div id="riskEvents" class="insight-list"></div>
         </article>
 
         <article class="card">
@@ -1028,6 +1131,11 @@
         <article class="card">
           <div class="panel-title">信号可信度</div>
           <div id="signalReliability" class="reliability-list"></div>
+        </article>
+
+        <article class="card">
+          <div class="panel-title">分类型回测</div>
+          <div id="typedBacktest" class="reliability-list"></div>
         </article>
 
         <article class="card">
@@ -1081,6 +1189,7 @@
       quoteLoading: false,
       minuteLoadedDate: null,
       selectedCode: "600105",
+      currentPosition: 0,
       requestId: 0,
       timers: []
     };
@@ -1110,21 +1219,31 @@
       breakoutReason: $("breakoutReason"),
       breakoutStake: $("breakoutStake"),
       breakoutTags: $("breakoutTags"),
+      stockTypeDate: $("stockTypeDate"),
+      stockTypePanel: $("stockTypePanel"),
+      qualityGrade: $("qualityGrade"),
+      signalQualityPanel: $("signalQualityPanel"),
       signalWord: $("signalWord"),
       signalReason: $("signalReason"),
       score: $("score"),
       evidenceTags: $("evidenceTags"),
       positionDate: $("positionDate"),
+      currentPositionInput: $("currentPositionInput"),
       positionPlan: $("positionPlan"),
+      tomorrowPlanDate: $("tomorrowPlanDate"),
+      tomorrowPlan: $("tomorrowPlan"),
       horizon: $("horizon"),
       levels: $("levels"),
       factors: $("factors"),
+      riskEventDate: $("riskEventDate"),
+      riskEvents: $("riskEvents"),
       backtestWindow: $("backtestWindow"),
       backtestSummary: $("backtestSummary"),
       backtestMetrics: $("backtestMetrics"),
       signalReplay: $("signalReplay"),
       positionReplay: $("positionReplay"),
       signalReliability: $("signalReliability"),
+      typedBacktest: $("typedBacktest"),
       log: $("log"),
       quoteSource: $("quoteSource"),
       analysisTime: $("analysisTime"),
@@ -1168,12 +1287,18 @@
       return `daily_cache_${STOCK.code}_v8`;
     }
 
+    function positionCacheKey() {
+      return `current_position_${STOCK.code}_v1`;
+    }
+
     function updateStockMeta() {
       document.title = `${STOCK.name} ${STOCK.code} 日K中长线观察看板`;
       els.stockTitle.textContent = stockLabel();
       els.stockSelect.value = STOCK.code;
       els.intradayWatermark.textContent = STOCK.code;
-      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v18`;
+      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v19`;
+      state.currentPosition = clamp(Number(localStorage.getItem(positionCacheKey()) || 0), 0, 100);
+      els.currentPositionInput.value = String(state.currentPosition);
       els.intradayHint.textContent = `打开后回填当天 9:30 至当前分钟线 · 价格 / 均价 / EMA13`;
       els.dailyHint.textContent = `最近 90 个交易日 · MA20 / MA60`;
     }
@@ -1975,6 +2100,8 @@
       const nearBreak = Number.isFinite(breakPct) && breakPct > -1.2;
       const failed = Number.isFinite(threshold) && price < threshold && base.latest.close >= threshold;
       const hold = intradayBreakoutHold(threshold, quote);
+      const type = classifyStockType(state.daily, base);
+      const filter = falseBreakoutFilter(base, quote, type);
       const tags = [
         `关键位 ${fmt.price(threshold)}`,
         `现价 ${fmt.price(price)}`,
@@ -1982,11 +2109,24 @@
         Number.isFinite(volumePace) ? `量能进度 ${volumePace.toFixed(2)}x` : `日K量比 ${m.volumeRatio.toFixed(2)}x`,
         hold.ready ? `站稳分钟 ${hold.count}` : "等待分时站稳",
         `日K评分 ${base.score}`,
-        `基准日K ${base.latest.date}`
+        `基准日K ${base.latest.date}`,
+        `类型 ${type.label}`,
+        filter.blockReady ? "假突破过滤" : ""
       ].filter(Boolean);
 
+      if (broke && scoreOk && trendOk && filter.blockReady) {
+        return {
+          status: "watch",
+          cls: "watch",
+          word: "突破观察",
+          stake: "只看不追",
+          reason: `${type.label} 的假突破风险偏高，虽然价格突破，但需要回踩不破或收盘确认后再考虑试仓。`,
+          tags
+        };
+      }
       if (broke && scoreOk && trendOk && heatOk && volumeOk && hold.ready) {
-        const stake = macdOk ? "试仓10%-20%" : "试仓10%";
+        const cautious = type.label === "高位异动股" || type.label === "跌停修复股" || type.label === "退潮风险股";
+        const stake = cautious ? "试仓5%-10%" : macdOk ? "试仓10%-20%" : "试仓10%";
         return {
           status: "ready",
           cls: "ready",
@@ -2107,6 +2247,7 @@
       for (let i = startIndex; i < daily.length; i++) {
         try {
           const analysis = analyzeDaily(daily.slice(0, i + 1));
+          const type = classifyStockType(daily.slice(0, i + 1), analysis);
           score68Streak = analysis.score >= 68 ? score68Streak + 1 : 0;
           const plan = buildPositionPlan(analysis, { score68Streak });
           records.push({
@@ -2116,6 +2257,7 @@
             score: analysis.score,
             signal: analysis.signal,
             signalClass: analysis.signalClass,
+            type: type.label,
             plan,
             ma60: analysis.metrics.ma60,
             macdHist: analysis.metrics.macd.hist,
@@ -2184,8 +2326,33 @@
         tradeCount: positionEvents.length,
         avgPosition,
         currentPosition: `${last.plan.target}%`,
-        reliability: calcSignalReliability(records)
+        reliability: calcSignalReliability(records),
+        typed: calcTypedBacktest(records)
       };
+    }
+
+    function calcTypedBacktest(records) {
+      const groups = new Map();
+      records.forEach((record, index) => {
+        const key = record.type || "未分类";
+        if (!groups.has(key)) groups.set(key, []);
+        const future = records[index + 5];
+        groups.get(key).push({
+          record,
+          d5: future ? (future.close / record.close - 1) * 100 : NaN
+        });
+      });
+      return [...groups.entries()].map(([name, rows]) => {
+        const returns = rows.map(row => row.d5).filter(Number.isFinite);
+        return {
+          name,
+          count: rows.length,
+          d5: average(returns),
+          hit: returns.length ? returns.filter(value => value > 0).length / returns.length * 100 : NaN,
+          avgScore: average(rows.map(row => row.record.score).filter(Number.isFinite)),
+          avgTarget: average(rows.map(row => row.record.plan.target).filter(Number.isFinite))
+        };
+      }).sort((a, b) => b.count - a.count);
     }
 
     function calcSignalReliability(records) {
@@ -2387,6 +2554,195 @@
       return streak;
     }
 
+    function classifyStockType(daily, analysis) {
+      if (!analysis || !Array.isArray(daily) || daily.length < 20) {
+        return { label: "等待识别", tone: "neutral", confidence: "--", traits: ["数据不足"] };
+      }
+      const rows = daily.slice(-60);
+      const latest = analysis.latest;
+      const prev = analysis.prev || latest;
+      const gain30 = daily.length > 30 ? pctChange(latest.close, daily[daily.length - 31].close) : NaN;
+      const gain10 = daily.length > 10 ? pctChange(latest.close, daily[daily.length - 11].close) : NaN;
+      const recent = daily.slice(-8);
+      const limitUps = recent.filter((row, index) => {
+        const p = daily[daily.indexOf(row) - 1];
+        return p && pctChange(row.close, p.close) >= 9.4;
+      }).length;
+      const limitDowns = recent.filter((row, index) => {
+        const p = daily[daily.indexOf(row) - 1];
+        return p && pctChange(row.close, p.close) <= -9.4;
+      }).length;
+      const lastChange = pctChange(latest.close, prev.close);
+      const prevChange = daily.length > 2 ? pctChange(prev.close, daily[daily.length - 3].close) : NaN;
+      const high60 = Math.max(...rows.map(row => row.high));
+      const drawdownHigh = high60 ? (latest.close / high60 - 1) * 100 : NaN;
+      const highTurnover = Number.isFinite(latest.turnover) && latest.turnover >= 12;
+      const m = analysis.metrics;
+
+      let label = "趋势股";
+      let tone = "up";
+      let confidence = "中";
+      const traits = [];
+
+      if ((Number.isFinite(gain30) && gain30 >= 100) || limitUps >= 3) {
+        label = "高位异动股";
+        tone = "warn";
+        confidence = "高";
+        traits.push(`30日涨幅 ${fmt.pct(gain30)}`, `近8日涨停/大阳 ${limitUps} 次`);
+      }
+      if (limitDowns >= 1 && Number.isFinite(prevChange) && prevChange <= -9.4 && lastChange > -9.4) {
+        label = "跌停修复股";
+        tone = "warn";
+        confidence = "高";
+        traits.push("跌停后开板修复", `当日涨跌 ${fmt.pct(lastChange)}`);
+      }
+      if (analysis.score < 52 || (Number.isFinite(drawdownHigh) && drawdownHigh <= -18 && m.ma20 < m.ma60)) {
+        label = "退潮风险股";
+        tone = "bad";
+        confidence = "高";
+        traits.push(`距60日高点 ${fmt.pct(drawdownHigh)}`, "趋势转弱");
+      } else if (analysis.score >= 68 && latest.close >= m.ma20 && m.ma20 >= m.ma60 && m.macd.hist >= m.macd.prevHist && label === "趋势股") {
+        label = m.volumeRatio >= 1.35 ? "强势加速股" : "趋势股";
+        tone = m.volumeRatio >= 1.35 ? "up" : "neutral";
+        confidence = "中高";
+        traits.push("MA20强于MA60", "MACD未恶化");
+      }
+      if (highTurnover) traits.push(`高换手 ${fmt.plainPct(latest.turnover)}`);
+      if (Number.isFinite(m.atrPct) && m.atrPct >= 8) traits.push(`高波动 ATR ${fmt.plainPct(m.atrPct)}`);
+      if (STOCK.code === "603629") traits.push("曾触发30日200%异动风险");
+
+      return {
+        label,
+        tone,
+        confidence,
+        gain30,
+        gain10,
+        limitUps,
+        limitDowns,
+        drawdownHigh,
+        highTurnover,
+        traits: traits.length ? traits.slice(0, 5) : ["常规趋势识别"]
+      };
+    }
+
+    function falseBreakoutFilter(analysis, quote, type) {
+      const q = quote || currentSnapshot();
+      const m = analysis.metrics;
+      const rows = [];
+      let penalty = 0;
+      if (type.label === "高位异动股" || type.label === "跌停修复股" || type.label === "退潮风险股") {
+        penalty += 18;
+        rows.push({ label: "类型降权", text: `${type.label} 不按普通趋势突破处理，突破只允许先试仓。`, tone: "warn" });
+      }
+      if (q && Number.isFinite(q.price) && Number.isFinite(q.open) && q.price < q.open && q.changePct > 0) {
+        penalty += 10;
+        rows.push({ label: "高开回落", text: "盘中价格低于开盘价，追涨可信度下降。", tone: "warn" });
+      }
+      if (Number.isFinite(m.volumeRatio) && m.volumeRatio >= 1.8 && analysis.latest.close < analysis.prev.close) {
+        penalty += 12;
+        rows.push({ label: "放量下跌", text: "放量但收盘弱，容易是派发或分歧释放。", tone: "bad" });
+      }
+      if (Number.isFinite(m.rsi) && m.rsi >= 78) {
+        penalty += 10;
+        rows.push({ label: "短线过热", text: `RSI ${m.rsi.toFixed(0)}，突破后回落风险上升。`, tone: "warn" });
+      }
+      if (Number.isFinite(m.atrPct) && m.atrPct >= 8) {
+        penalty += 8;
+        rows.push({ label: "波动过大", text: `ATR ${fmt.plainPct(m.atrPct)}，止损距离会被拉大。`, tone: "warn" });
+      }
+      return {
+        penalty,
+        blockReady: penalty >= 24,
+        rows: rows.length ? rows : [{ label: "过滤结果", text: "未发现明显假突破风险。", tone: "neutral" }]
+      };
+    }
+
+    function buildSignalQuality(analysis, type) {
+      const filter = falseBreakoutFilter(analysis, currentSnapshot(), type);
+      const m = analysis.metrics;
+      let quality = analysis.score - filter.penalty;
+      if (m.ma20 >= m.ma60 && analysis.latest.close >= m.ma20) quality += 8;
+      if (m.macd.hist >= m.macd.prevHist) quality += 6;
+      if (Number.isFinite(m.volumeRatio) && m.volumeRatio >= 1.15 && analysis.latest.close >= analysis.prev.close) quality += 6;
+      quality = clamp(Math.round(quality), 0, 100);
+      const grade = quality >= 82 ? "A级" : quality >= 68 ? "B级" : quality >= 52 ? "C级" : "D级";
+      const tone = quality >= 82 ? "up" : quality >= 68 ? "neutral" : quality >= 52 ? "warn" : "bad";
+      const action = grade === "A级" ? "可执行" : grade === "B级" ? "轻仓执行" : grade === "C级" ? "只观察或试错" : "不追";
+      return {
+        grade,
+        tone,
+        quality,
+        action,
+        rows: [
+          { label: "等级", text: `${grade} / ${quality}分 / ${action}`, tone },
+          { label: "类型影响", text: `${type.label}，可信度 ${type.confidence}，${type.traits.join(" / ")}`, tone: type.tone },
+          ...filter.rows
+        ]
+      };
+    }
+
+    function buildTomorrowPlan(analysis, type) {
+      const m = analysis.metrics;
+      const close = analysis.latest.close;
+      const support = analysis.levels[0]?.points?.[0]?.value;
+      const pressure = analysis.levels[1]?.points?.[0]?.value;
+      const breakout = analysis.levels[2]?.points?.find(point => point.label === "突破线")?.value || pressure;
+      const stop = analysis.levels[3]?.points?.[0]?.value || support;
+      const weakLine = Math.max(stop || 0, Number.isFinite(m.ma20) ? m.ma20 : 0);
+      const repairMode = type.label === "跌停修复股" || type.label === "高位异动股";
+      return [
+        {
+          label: "强势确认价",
+          tone: "pressure",
+          text: repairMode
+            ? `明天只有站稳 ${fmt.price(breakout)} 并放量不回落，才把修复升级为延续。`
+            : `放量站稳 ${fmt.price(breakout)}，趋势信号可信度上调。`,
+          points: [{ label: "确认", value: breakout }]
+        },
+        {
+          label: "弱势失守价",
+          tone: "sell",
+          text: `跌破 ${fmt.price(weakLine)} 且分时均价压制，优先降低仓位或停止试仓。`,
+          points: [{ label: "失守", value: weakLine }]
+        },
+        {
+          label: "买入位置",
+          tone: "buy",
+          text: repairMode
+            ? `先看回踩 ${fmt.price(close)} 附近不破，再站回分时均价；不做高开秒冲。`
+            : `回踩 ${fmt.price(support)} 附近缩量企稳，或突破后回踩不破再加。`,
+          points: [{ label: "回踩", value: repairMode ? close : support }]
+        },
+        {
+          label: "减仓位置",
+          tone: "support",
+          text: `冲高接近 ${fmt.price(pressure)} 但量价背离，或跌破 ${fmt.price(stop)}，按减仓预案执行。`,
+          points: [{ label: "压力", value: pressure }, { label: "防守", value: stop }]
+        }
+      ];
+    }
+
+    function buildRiskEvents(daily, analysis, type) {
+      const m = analysis.metrics;
+      const events = [];
+      if (STOCK.code === "603629") {
+        events.push({ label: "异动公告", text: "利通电子曾出现30日200%异动背景，技术信号需要自动降权。", tone: "bad" });
+      }
+      if (type.label === "高位异动股" || type.label === "跌停修复股") {
+        events.push({ label: "情绪风险", text: `${type.label} 更容易出现冲高回落和假突破。`, tone: "warn" });
+      }
+      if (Number.isFinite(analysis.latest.turnover) && analysis.latest.turnover >= 12) {
+        events.push({ label: "高换手", text: `换手 ${fmt.plainPct(analysis.latest.turnover)}，分歧大，仓位不宜一次打满。`, tone: "warn" });
+      }
+      if (Number.isFinite(m.atrPct) && m.atrPct >= 8) {
+        events.push({ label: "高波动", text: `ATR ${fmt.plainPct(m.atrPct)}，止损线要更严格。`, tone: "warn" });
+      }
+      if (m.rsi >= 78) {
+        events.push({ label: "过热", text: `RSI ${m.rsi.toFixed(0)}，追高性价比下降。`, tone: "bad" });
+      }
+      return events.length ? events : [{ label: "暂无强风险", text: "未识别到严重异动、过热或高波动事件。", tone: "neutral" }];
+    }
+
     function renderAll() {
       renderTop();
       renderIntradayBreakout();
@@ -2462,6 +2818,10 @@
         els.score.textContent = "0";
         els.score.style.setProperty("--score", 0);
         els.evidenceTags.innerHTML = "";
+        els.stockTypeDate.textContent = "--";
+        els.stockTypePanel.innerHTML = emptyInsight(["类型"]);
+        els.qualityGrade.textContent = "--";
+        els.signalQualityPanel.innerHTML = emptyInsight(["可信度"]);
         els.positionDate.textContent = "--";
         els.positionPlan.innerHTML = `
           <div class="position-hero">
@@ -2469,11 +2829,16 @@
             <i class="position-action neutral">等待数据</i>
           </div>
         `;
+        els.tomorrowPlanDate.textContent = "--";
+        els.tomorrowPlan.innerHTML = emptyRows(["强势确认价", "弱势失守价", "买入位置", "减仓位置"], "level-row");
         els.horizon.innerHTML = emptyRows(["次日", "一周", "一个月"]);
         els.levels.innerHTML = emptyRows(["关键支撑", "关键压力", "观察买点", "关键卖点"], "level-row");
         els.factors.innerHTML = "";
+        els.riskEventDate.textContent = "--";
+        els.riskEvents.innerHTML = emptyInsight(["风险"]);
         return;
       }
+      renderEnhancedPanels(analysis);
       els.signalWord.textContent = analysis.signal;
       els.signalWord.className = `signal-word ${analysis.signalClass}`;
       els.signalReason.textContent = analysis.reason;
@@ -2506,10 +2871,51 @@
       `).join("");
     }
 
+    function renderEnhancedPanels(analysis) {
+      const type = classifyStockType(state.daily, analysis);
+      const quality = buildSignalQuality(analysis, type);
+      const tomorrow = buildTomorrowPlan(analysis, type);
+      const risks = buildRiskEvents(state.daily, analysis, type);
+
+      els.stockTypeDate.textContent = analysis.latest.date;
+      els.stockTypePanel.innerHTML = [
+        { label: type.label, text: `可信度 ${type.confidence}；${type.traits.join(" / ")}`, tone: type.tone },
+        { label: "近30日", text: `涨幅 ${fmt.pct(type.gain30)}；近10日涨幅 ${fmt.pct(type.gain10)}；距高点 ${fmt.pct(type.drawdownHigh)}`, tone: type.tone }
+      ].map(renderInsightRow).join("");
+
+      els.qualityGrade.textContent = `${quality.grade} · ${quality.quality}分`;
+      els.signalQualityPanel.innerHTML = quality.rows.map(renderInsightRow).join("");
+
+      els.tomorrowPlanDate.textContent = analysis.latest.date;
+      els.tomorrowPlan.innerHTML = tomorrow.map(item => `
+        <div class="level-row ${item.tone || ""}">
+          <b>${item.label}</b>
+          <div class="level-content">
+            <span class="small">${item.text}</span>
+            <div class="level-chips">${renderLevelChips(item, analysis.latest.close)}</div>
+          </div>
+        </div>
+      `).join("");
+
+      els.riskEventDate.textContent = analysis.latest.date;
+      els.riskEvents.innerHTML = risks.map(renderInsightRow).join("");
+    }
+
+    function renderInsightRow(row) {
+      return `<div class="insight-row ${row.tone || ""}"><b>${row.label}</b><span>${row.text}</span></div>`;
+    }
+
     function renderPositionPlan(analysis) {
       const latestRecord = state.backtest && state.backtest.records && state.backtest.records.at(-1);
       const plan = analysis.positionPlan
         || (latestRecord && latestRecord.date === analysis.latest.date ? latestRecord.plan : buildPositionPlan(analysis));
+      const current = clamp(Number(state.currentPosition || 0), 0, 100);
+      const delta = plan.target - current;
+      const executeText = Math.abs(delta) < 5
+        ? `当前 ${current}% 已接近目标，按计划维持。`
+        : delta > 0
+          ? `当前 ${current}%，目标 ${plan.target}%，理论可增加 ${delta}% 仓位。`
+          : `当前 ${current}%，目标 ${plan.target}%，理论需降低 ${Math.abs(delta)}% 仓位。`;
       els.positionDate.textContent = analysis.latest.date;
       els.positionPlan.innerHTML = `
         <div class="position-hero">
@@ -2520,6 +2926,10 @@
           <i class="position-action ${plan.cls}">${plan.action}</i>
         </div>
         <div class="position-detail">
+          <div class="position-mini">
+            <b>当前执行</b>
+            <span>${executeText}</span>
+          </div>
           <div class="position-mini">
             <b>操作区间</b>
             <span>${plan.range}</span>
@@ -2632,6 +3042,7 @@
         if (els.signalReplay) els.signalReplay.innerHTML = emptyRows(["信号", "交易", "切换"], "replay-row");
         if (els.positionReplay) els.positionReplay.innerHTML = emptyRows(["仓位"], "replay-row");
         if (els.signalReliability) els.signalReliability.innerHTML = "";
+        if (els.typedBacktest) els.typedBacktest.innerHTML = "";
         return;
       }
 
@@ -2687,6 +3098,21 @@
           </div>
         `).join("")}
       `;
+
+      els.typedBacktest.innerHTML = `
+        <div class="reliability-row">
+          <b>类型</b><span>样本</span><span>5日</span><span>胜率</span><span>均仓</span>
+        </div>
+        ${(bt.typed || []).map(item => `
+          <div class="reliability-row">
+            <b>${item.name}<br><small class="small">均分 ${Number.isFinite(item.avgScore) ? item.avgScore.toFixed(0) : "--"}</small></b>
+            <span>${item.count}</span>
+            <span class="${pctClass(item.d5)}">${fmt.pct(item.d5)}</span>
+            <span class="${pctClass((item.hit || 0) - 50)}">${fmt.pct(item.hit)}</span>
+            <span>${Number.isFinite(item.avgTarget) ? item.avgTarget.toFixed(0) + "%" : "--"}</span>
+          </div>
+        `).join("")}
+      `;
     }
 
     function metricCell(label, value, cls = "") {
@@ -2699,6 +3125,10 @@
 
     function emptyRows(labels, cls = "horizon-row") {
       return labels.map(label => `<div class="${cls}"><b>${label}</b><span class="small">--</span></div>`).join("");
+    }
+
+    function emptyInsight(labels) {
+      return labels.map(label => `<div class="insight-row"><b>${label}</b><span>--</span></div>`).join("");
     }
 
     function dynamicAverage(points) {
@@ -2909,6 +3339,11 @@
       $("stockSelect").addEventListener("change", (event) => {
         localStorage.setItem("selected_stock_code_v1", event.target.value);
         switchStock(event.target.value);
+      });
+      $("currentPositionInput").addEventListener("input", (event) => {
+        state.currentPosition = clamp(Number(event.target.value || 0), 0, 100);
+        localStorage.setItem(positionCacheKey(), String(state.currentPosition));
+        renderAnalysis();
       });
       $("refreshBtn").addEventListener("click", () => {
         addLog("手动刷新");
