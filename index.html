@@ -209,9 +209,50 @@
       align-items: start;
     }
 
-    .chart-stack, .side {
+    .chart-stack, .side, .below-sections, .section-grid {
       display: grid;
       gap: 16px;
+    }
+
+    .below-sections {
+      margin-top: 16px;
+    }
+
+    .section-band {
+      display: grid;
+      gap: 12px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 2px 2px 0;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.2;
+    }
+
+    .section-title span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .section-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: start;
+    }
+
+    .section-grid.analysis {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .section-grid.backtest {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .chart-panel {
@@ -918,6 +959,11 @@
     @media (max-width: 1180px) {
       .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .layout { grid-template-columns: 1fr; }
+      .section-grid,
+      .section-grid.analysis,
+      .section-grid.backtest {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
     @media (max-width: 720px) {
@@ -927,6 +973,12 @@
       .stock-select { width: 100%; }
       .toolbar { justify-content: flex-start; }
       .metrics, .grid-2 { grid-template-columns: 1fr; }
+      .section-grid,
+      .section-grid.analysis,
+      .section-grid.backtest {
+        grid-template-columns: 1fr;
+      }
+      .section-title { flex-direction: column; align-items: flex-start; }
       .chart-panel, .chart-panel.daily { min-height: 420px; }
       .daily .chart-wrap, .chart-wrap { min-height: 315px; }
       .panel-head { flex-direction: column; }
@@ -954,7 +1006,7 @@
           </select>
           <h1 id="stockTitle">永鼎股份 600105.SH</h1>
         </div>
-        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v24</div>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v25</div>
       </div>
       <div class="toolbar">
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
@@ -1078,7 +1130,16 @@
           </div>
           <div id="signalQualityPanel" class="insight-list"></div>
         </article>
+      </aside>
+    </section>
 
+    <section class="below-sections">
+      <div class="section-band">
+        <div class="section-title">
+          <h2>执行区</h2>
+          <span>仓位、成本和交易计划</span>
+        </div>
+        <div class="section-grid execution">
         <article class="card">
           <div class="panel-head">
             <div class="panel-title">仓位管理</div>
@@ -1112,7 +1173,15 @@
           </div>
           <div id="tomorrowPlan" class="levels"></div>
         </article>
+        </div>
+      </div>
 
+      <div class="section-band">
+        <div class="section-title">
+          <h2>分析区</h2>
+          <span>周期、价位、指标和风险</span>
+        </div>
+        <div class="section-grid analysis">
         <article class="card">
           <div class="panel-head">
             <div class="panel-title">周期观察</div>
@@ -1138,7 +1207,15 @@
           </div>
           <div id="riskEvents" class="insight-list"></div>
         </article>
+        </div>
+      </div>
 
+      <div class="section-band">
+        <div class="section-title">
+          <h2>回测复盘区</h2>
+          <span>策略表现、历史信号和更新记录</span>
+        </div>
+        <div class="section-grid backtest">
         <article class="card">
           <div class="panel-head">
             <div class="panel-title">策略回测</div>
@@ -1179,7 +1256,8 @@
           </div>
           <div id="log" class="log" aria-live="polite"></div>
         </article>
-      </aside>
+        </div>
+      </div>
     </section>
 
     <div class="risk-note">本看板只用于行情观察和策略辅助，不构成投资建议；买卖决策请结合个人风险承受能力独立判断。</div>
@@ -1349,7 +1427,7 @@
       els.stockTitle.textContent = stockLabel();
       els.stockSelect.value = STOCK.code;
       els.intradayWatermark.textContent = STOCK.code;
-      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v24`;
+      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v25`;
       state.currentPosition = clamp(Number(localStorage.getItem(positionCacheKey()) || 0), 0, 100);
       els.currentPositionInput.value = String(state.currentPosition);
       const savedCost = Number(localStorage.getItem(holdingCostCacheKey()) || NaN);
