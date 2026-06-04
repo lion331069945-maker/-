@@ -934,7 +934,7 @@
           </select>
           <h1 id="stockTitle">永鼎股份 600105.SH</h1>
         </div>
-        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v21</div>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v22</div>
       </div>
       <div class="toolbar">
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
@@ -1069,7 +1069,20 @@
             <input id="currentPositionInput" type="number" min="0" max="100" step="5" value="0">
             <span>%</span>
           </div>
+          <div class="position-input">
+            <label for="holdingCostInput">持仓成本</label>
+            <input id="holdingCostInput" type="number" min="0" step="0.01" placeholder="可不填">
+            <span>元</span>
+          </div>
           <div id="positionPlan" class="position-plan"></div>
+        </article>
+
+        <article class="card">
+          <div class="panel-head">
+            <div class="panel-title">交易计划执行单</div>
+            <div id="tradePlanDate" class="small">--</div>
+          </div>
+          <div id="tradePlan" class="insight-list"></div>
         </article>
 
         <article class="card">
@@ -1202,6 +1215,7 @@
       minuteLoadedDate: null,
       selectedCode: "600105",
       currentPosition: 0,
+      holdingCost: NaN,
       requestId: 0,
       timers: []
     };
@@ -1241,7 +1255,10 @@
       evidenceTags: $("evidenceTags"),
       positionDate: $("positionDate"),
       currentPositionInput: $("currentPositionInput"),
+      holdingCostInput: $("holdingCostInput"),
       positionPlan: $("positionPlan"),
+      tradePlanDate: $("tradePlanDate"),
+      tradePlan: $("tradePlan"),
       tomorrowPlanDate: $("tomorrowPlanDate"),
       tomorrowPlan: $("tomorrowPlan"),
       horizon: $("horizon"),
@@ -1303,14 +1320,21 @@
       return `current_position_${STOCK.code}_v1`;
     }
 
+    function holdingCostCacheKey() {
+      return `holding_cost_${STOCK.code}_v1`;
+    }
+
     function updateStockMeta() {
       document.title = `${STOCK.name} ${STOCK.code} 日K中长线观察看板`;
       els.stockTitle.textContent = stockLabel();
       els.stockSelect.value = STOCK.code;
       els.intradayWatermark.textContent = STOCK.code;
-      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v21`;
+      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v22`;
       state.currentPosition = clamp(Number(localStorage.getItem(positionCacheKey()) || 0), 0, 100);
       els.currentPositionInput.value = String(state.currentPosition);
+      const savedCost = Number(localStorage.getItem(holdingCostCacheKey()) || NaN);
+      state.holdingCost = Number.isFinite(savedCost) && savedCost > 0 ? savedCost : NaN;
+      els.holdingCostInput.value = Number.isFinite(state.holdingCost) ? String(state.holdingCost) : "";
       els.intradayHint.textContent = `打开后回填当天 9:30 至当前分钟线 · 价格 / 均价 / EMA13`;
       els.dailyHint.textContent = `最近 90 个交易日 · MA20 / MA60`;
     }
@@ -2817,6 +2841,69 @@
       return events.length ? events : [{ label: "暂无强风险", text: "未识别到严重异动、过热或高波动事件。", tone: "neutral" }];
     }
 
+    function buildTradePlan(analysis, type, plan) {
+      const close = analysis.latest.close;
+      const support = analysis.levels[0]?.points?.[0]?.value;
+      const pressure = analysis.levels[1]?.points?.[0]?.value;
+      const breakout = analysis.levels[2]?.points?.find(point => point.label === "突破线")?.value || pressure;
+      const stop = analysis.levels[3]?.points?.[0]?.value || support;
+      const m = analysis.metrics;
+      const currentPosition = clamp(Number(state.currentPosition || 0), 0, 100);
+      const cost = Number(state.holdingCost);
+      const pnl = Number.isFinite(cost) && cost > 0 ? (close / cost - 1) * 100 : NaN;
+      const delta = plan.target - currentPosition;
+      const cautious = type.label === "高位异动股" || type.label === "跌停修复股" || type.label === "退潮风险股";
+      const unit = cautious ? 5 : analysis.score >= 82 ? 15 : 10;
+      const buyPrice = Number.isFinite(breakout) ? breakout : close;
+      const addPrice = Number.isFinite(support) ? Math.min(close, support * 1.012) : close;
+      const reducePrice = Number.isFinite(pressure) ? pressure : close + m.atr;
+      const stopPrice = Number.isFinite(stop) ? stop : close - m.atr;
+
+      const rows = [];
+      rows.push({
+        label: "持仓盈亏",
+        tone: Number.isFinite(pnl) ? pctClass(pnl) || "neutral" : "neutral",
+        text: Number.isFinite(pnl)
+          ? `成本 ${fmt.price(cost)}，现价 ${fmt.price(close)}，浮动盈亏 ${fmt.pct(pnl)}。`
+          : `未填写持仓成本；填写后会显示浮盈/浮亏和成本防守线。`
+      });
+      rows.push({
+        label: "今日动作",
+        tone: delta > 5 ? "up" : delta < -5 ? "down" : "neutral",
+        text: Math.abs(delta) < 5
+          ? `当前 ${currentPosition}% 接近目标 ${plan.target}%，以维持为主。`
+          : delta > 0
+            ? `目标 ${plan.target}%，当前 ${currentPosition}%，最多分批增加 ${Math.min(Math.abs(delta), unit)}% 起步。`
+            : `目标 ${plan.target}%，当前 ${currentPosition}%，优先分批降低 ${Math.min(Math.abs(delta), unit)}%。`
+      });
+      rows.push({
+        label: "买入价位",
+        tone: "up",
+        text: `放量站稳 ${fmt.price(buyPrice)}，且盘中计时满足后，才允许执行买入；单次 ${unit}%。`
+      });
+      rows.push({
+        label: "加仓价位",
+        tone: "neutral",
+        text: `回踩 ${fmt.price(addPrice)} 附近不破，并连续承接计时满足后，才允许加仓；单次 ${unit}%。`
+      });
+      rows.push({
+        label: "减仓价位",
+        tone: "down",
+        text: `冲高接近 ${fmt.price(reducePrice)} 但量价背离，或当前仓位高于目标仓位，优先减仓 ${unit}%。`
+      });
+      rows.push({
+        label: "止损价位",
+        tone: "bad",
+        text: `跌破 ${fmt.price(stopPrice)}，或跌破成本 ${Number.isFinite(cost) ? fmt.price(cost) : "--"} 后不能快速收回，停止加仓并执行防守。`
+      });
+      rows.push({
+        label: "不操作",
+        tone: "warn",
+        text: `未到关键位、计时未满足、量能不足、假突破过滤触发，或价格夹在支撑与压力中间时，不做主动交易。`
+      });
+      return rows;
+    }
+
     function renderAll() {
       renderTop();
       renderIntradayBreakout();
@@ -2903,6 +2990,8 @@
             <i class="position-action neutral">等待数据</i>
           </div>
         `;
+        els.tradePlanDate.textContent = "--";
+        els.tradePlan.innerHTML = emptyInsight(["执行单"]);
         els.tomorrowPlanDate.textContent = "--";
         els.tomorrowPlan.innerHTML = emptyRows(["强势确认价", "弱势失守价", "买入位置", "减仓位置"], "level-row");
         els.horizon.innerHTML = emptyRows(["次日", "一周", "一个月"]);
@@ -2950,6 +3039,8 @@
       const quality = buildSignalQuality(analysis, type);
       const tomorrow = buildTomorrowPlan(analysis, type);
       const risks = buildRiskEvents(state.daily, analysis, type);
+      const plan = analysis.positionPlan || buildPositionPlan(analysis);
+      const tradePlan = buildTradePlan(analysis, type, plan);
 
       els.stockTypeDate.textContent = analysis.latest.date;
       els.stockTypePanel.innerHTML = [
@@ -2973,6 +3064,9 @@
 
       els.riskEventDate.textContent = analysis.latest.date;
       els.riskEvents.innerHTML = risks.map(renderInsightRow).join("");
+
+      els.tradePlanDate.textContent = analysis.latest.date;
+      els.tradePlan.innerHTML = tradePlan.map(renderInsightRow).join("");
     }
 
     function renderInsightRow(row) {
@@ -2984,6 +3078,8 @@
       const plan = analysis.positionPlan
         || (latestRecord && latestRecord.date === analysis.latest.date ? latestRecord.plan : buildPositionPlan(analysis));
       const current = clamp(Number(state.currentPosition || 0), 0, 100);
+      const cost = Number(state.holdingCost);
+      const pnl = Number.isFinite(cost) && cost > 0 ? (analysis.latest.close / cost - 1) * 100 : NaN;
       const delta = plan.target - current;
       const executeText = Math.abs(delta) < 5
         ? `当前 ${current}% 已接近目标，按计划维持。`
@@ -3000,6 +3096,10 @@
           <i class="position-action ${plan.cls}">${plan.action}</i>
         </div>
         <div class="position-detail">
+          <div class="position-mini">
+            <b>成本盈亏</b>
+            <span>${Number.isFinite(pnl) ? `成本 ${fmt.price(cost)} / 浮动盈亏 ${fmt.pct(pnl)}` : "未填写持仓成本"}</span>
+          </div>
           <div class="position-mini">
             <b>当前执行</b>
             <span>${executeText}</span>
@@ -3417,6 +3517,13 @@
       $("currentPositionInput").addEventListener("input", (event) => {
         state.currentPosition = clamp(Number(event.target.value || 0), 0, 100);
         localStorage.setItem(positionCacheKey(), String(state.currentPosition));
+        renderAnalysis();
+      });
+      $("holdingCostInput").addEventListener("input", (event) => {
+        const value = Number(event.target.value);
+        state.holdingCost = Number.isFinite(value) && value > 0 ? value : NaN;
+        if (Number.isFinite(state.holdingCost)) localStorage.setItem(holdingCostCacheKey(), String(state.holdingCost));
+        else localStorage.removeItem(holdingCostCacheKey());
         renderAnalysis();
       });
       $("refreshBtn").addEventListener("click", () => {
