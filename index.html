@@ -930,10 +930,11 @@
           <select id="stockSelect" class="stock-select" aria-label="选择股票">
             <option value="600105">永鼎股份 600105.SH</option>
             <option value="603629">利通电子 603629.SH</option>
+            <option value="002384">东山精密 002384.SZ</option>
           </select>
           <h1 id="stockTitle">永鼎股份 600105.SH</h1>
         </div>
-        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v20</div>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v21</div>
       </div>
       <div class="toolbar">
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
@@ -1170,6 +1171,15 @@
         tencent: "sh603629",
         eastmoneySecid: "1.603629",
         staticDailyPath: ""
+      },
+      "002384": {
+        code: "002384",
+        name: "东山精密",
+        market: "SZ",
+        sina: "sz002384",
+        tencent: "sz002384",
+        eastmoneySecid: "0.002384",
+        staticDailyPath: ""
       }
     };
     let STOCK = STOCKS["600105"];
@@ -1298,7 +1308,7 @@
       els.stockTitle.textContent = stockLabel();
       els.stockSelect.value = STOCK.code;
       els.intradayWatermark.textContent = STOCK.code;
-      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v20`;
+      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v21`;
       state.currentPosition = clamp(Number(localStorage.getItem(positionCacheKey()) || 0), 0, 100);
       els.currentPositionInput.value = String(state.currentPosition);
       els.intradayHint.textContent = `打开后回填当天 9:30 至当前分钟线 · 价格 / 均价 / EMA13`;
