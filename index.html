@@ -346,13 +346,14 @@
     .breakout-stake {
       display: grid;
       place-items: center;
-      min-width: 76px;
-      height: 54px;
-      padding: 0 10px;
+      min-width: 96px;
+      min-height: 62px;
+      padding: 0 14px;
       border: 1px solid rgba(255,255,255,.16);
       border-radius: 8px;
       background: rgba(0,0,0,.18);
-      font-size: 18px;
+      font-size: 21px;
+      line-height: 1.12;
       font-weight: 950;
       white-space: nowrap;
     }
@@ -362,6 +363,25 @@
       flex-wrap: wrap;
       gap: 7px;
       margin-top: 10px;
+    }
+
+    .tag.breakout-tier-tag,
+    .tag.breakout-action-tag {
+      min-height: 34px;
+      padding: 0 12px;
+      font-size: 14px;
+      font-weight: 900;
+      color: var(--text);
+    }
+
+    .tag.breakout-tier-tag {
+      border-color: rgba(108,167,255,.55);
+      background: rgba(108,167,255,.13);
+    }
+
+    .tag.breakout-action-tag {
+      border-color: rgba(239,197,95,.55);
+      background: rgba(239,197,95,.12);
     }
 
     .signal-word {
@@ -934,7 +954,7 @@
           </select>
           <h1 id="stockTitle">永鼎股份 600105.SH</h1>
         </div>
-        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v23</div>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v24</div>
       </div>
       <div class="toolbar">
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
@@ -1329,7 +1349,7 @@
       els.stockTitle.textContent = stockLabel();
       els.stockSelect.value = STOCK.code;
       els.intradayWatermark.textContent = STOCK.code;
-      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v23`;
+      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v24`;
       state.currentPosition = clamp(Number(localStorage.getItem(positionCacheKey()) || 0), 0, 100);
       els.currentPositionInput.value = String(state.currentPosition);
       const savedCost = Number(localStorage.getItem(holdingCostCacheKey()) || NaN);
@@ -2986,7 +3006,10 @@
       els.breakoutStake.textContent = live ? tier : "--";
       els.breakoutStake.className = `breakout-stake ${signal.cls === "ready" ? "up" : signal.cls === "fail" ? "down" : signal.cls === "watch" ? "neutral" : ""}`;
       els.breakoutTags.innerHTML = [`档位 ${tier}`, `动作 ${live ? signal.stake : "--"}`, ...signal.tags]
-        .map(tag => `<span class="tag ${signal.cls === "ready" ? "ok" : signal.cls === "fail" ? "bad" : "warn"}">${tag}</span>`)
+        .map((tag, index) => {
+          const emphasis = index === 0 ? "breakout-tier-tag" : index === 1 ? "breakout-action-tag" : "";
+          return `<span class="tag ${emphasis} ${signal.cls === "ready" ? "ok" : signal.cls === "fail" ? "bad" : "warn"}">${tag}</span>`;
+        })
         .join("");
     }
 
