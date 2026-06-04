@@ -934,7 +934,7 @@
           </select>
           <h1 id="stockTitle">永鼎股份 600105.SH</h1>
         </div>
-        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v22</div>
+        <div id="subtitle" class="sub">日K中长线观察 · 分时实时监控 · v23</div>
       </div>
       <div class="toolbar">
         <div class="pill"><span id="liveDot" class="dot"></span><span id="marketStatus">连接中</span></div>
@@ -1329,7 +1329,7 @@
       els.stockTitle.textContent = stockLabel();
       els.stockSelect.value = STOCK.code;
       els.intradayWatermark.textContent = STOCK.code;
-      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v22`;
+      els.subtitle.textContent = `日K中长线观察 · 分时实时监控 · v23`;
       state.currentPosition = clamp(Number(localStorage.getItem(positionCacheKey()) || 0), 0, 100);
       els.currentPositionInput.value = String(state.currentPosition);
       const savedCost = Number(localStorage.getItem(holdingCostCacheKey()) || NaN);
@@ -2111,6 +2111,7 @@
         return {
           status: "watch",
           cls: "watch",
+          tier: "观察信号",
           word: "等待盘中",
           stake: "--",
           reason: "交易时间内监控关键压力位、量能和日K底分。",
@@ -2168,6 +2169,7 @@
         return {
           status: "fail",
           cls: "fail",
+          tier: "执行信号",
           word: "减仓",
           stake: "防守",
           reason: `实时价跌破关键支撑 ${fmt.price(support)}，回踩计时失败，优先按减仓或停止加仓处理。`,
@@ -2179,6 +2181,7 @@
         return {
           status: "ready",
           cls: "ready",
+          tier: cautious ? "试仓信号" : "执行信号",
           word: "加仓",
           stake: cautious ? "加仓5%" : "加仓10%",
           reason: `价格回踩关键支撑 ${fmt.price(support)} 后已连续承接 ${supportTimer.minutes.toFixed(1)} 分钟，支撑未破，可按仓位管理小幅加仓。`,
@@ -2189,6 +2192,7 @@
         return {
           status: "watch",
           cls: "watch",
+          tier: "观察信号",
           word: "突破观察",
           stake: "只看不追",
           reason: `${type.label} 的假突破风险偏高，虽然价格突破，但需要回踩不破或收盘确认后再考虑试仓。`,
@@ -2201,6 +2205,7 @@
         return {
           status: "ready",
           cls: "ready",
+          tier: cautious || !macdOk ? "试仓信号" : "执行信号",
           word: "买入",
           stake,
           reason: macdOk
@@ -2213,6 +2218,7 @@
         return {
           status: "watch",
           cls: "watch",
+          tier: "观察信号",
           word: "突破观察",
           stake: "计时中",
           reason: `价格已站上关键位 ${fmt.price(threshold)}，正在计时；连续站稳 ${BREAKOUT_CONFIRM_MINUTES} 分钟且量能达标后才升级为买入。`,
@@ -2223,6 +2229,7 @@
         return {
           status: "watch",
           cls: "watch",
+          tier: "观察信号",
           word: "回踩观察",
           stake: "计时中",
           reason: `价格回到关键支撑 ${fmt.price(support)} 附近，正在观察承接；连续 ${SUPPORT_CONFIRM_MINUTES} 分钟不破后才升级为加仓。`,
@@ -2233,6 +2240,7 @@
         return {
           status: "watch",
           cls: "watch",
+          tier: "观察信号",
           word: "临近突破",
           stake: "等放量",
           reason: `距离关键位 ${fmt.price(threshold)} 很近，只有放量站上后才给试仓信号。`,
@@ -2243,6 +2251,7 @@
         return {
           status: "fail",
           cls: "fail",
+          tier: "执行信号",
           word: "突破失败",
           stake: "取消试仓",
           reason: `实时价跌回关键位 ${fmt.price(threshold)} 下方，盘中突破条件失效。`,
@@ -2252,11 +2261,18 @@
       return {
         status: "idle",
         cls: "",
+        tier: "观察信号",
         word: "未突破",
         stake: "--",
         reason: `当前未站上关键压力 ${fmt.price(threshold)}，盘中不提前给买入信号。下方支撑参考 ${fmt.price(support)}。`,
         tags
       };
+    }
+
+    function intradayTierNote(tier) {
+      if (tier === "执行信号") return "执行信号代表条件完整，仍按仓位管理分批执行。";
+      if (tier === "试仓信号") return "试仓信号只允许小仓位验证，不代表重仓买入。";
+      return "观察信号只用于盯盘，不作为直接买入依据。";
     }
 
     function intradayBreakoutBaseAnalysis(analysis, quote) {
@@ -2961,14 +2977,17 @@
       const q = currentSnapshot();
       const signal = buildIntradayBreakoutSignal(state.analysis, q);
       const live = !!state.quote && isTradingWindow(state.quote.at);
+      const tier = signal.tier || "观察信号";
       els.breakoutTime.textContent = q ? `${live ? "盘中" : "非交易"} ${fmt.time(q.at)}` : "--";
       els.breakoutSignal.className = `breakout-main ${signal.cls || ""}`;
       els.breakoutWord.textContent = live || signal.status === "ready" ? signal.word : "等待开盘";
       els.breakoutWord.className = `breakout-word ${signal.cls === "ready" ? "up" : signal.cls === "fail" ? "down" : signal.cls === "watch" ? "neutral" : "blue"}`;
-      els.breakoutReason.textContent = live ? signal.reason : "非交易时间不触发盘中试仓；开盘后监控关键压力位、量能进度和日K底分。";
-      els.breakoutStake.textContent = live ? signal.stake : "--";
+      els.breakoutReason.textContent = live ? `${signal.reason} ${intradayTierNote(tier)}` : "非交易时间不触发盘中试仓；开盘后监控关键压力位、量能进度和日K底分。";
+      els.breakoutStake.textContent = live ? tier : "--";
       els.breakoutStake.className = `breakout-stake ${signal.cls === "ready" ? "up" : signal.cls === "fail" ? "down" : signal.cls === "watch" ? "neutral" : ""}`;
-      els.breakoutTags.innerHTML = signal.tags.map(tag => `<span class="tag ${signal.cls === "ready" ? "ok" : signal.cls === "fail" ? "bad" : "warn"}">${tag}</span>`).join("");
+      els.breakoutTags.innerHTML = [`档位 ${tier}`, `动作 ${live ? signal.stake : "--"}`, ...signal.tags]
+        .map(tag => `<span class="tag ${signal.cls === "ready" ? "ok" : signal.cls === "fail" ? "bad" : "warn"}">${tag}</span>`)
+        .join("");
     }
 
     function renderAnalysis() {
