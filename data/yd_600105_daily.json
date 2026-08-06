@@ -3,36 +3,10 @@
   "name": "永鼎股份",
   "market": "SH",
   "source": "Tencent qfqday",
-  "updatedAt": "2026-08-05T14:29:12+00:00",
-  "count": 421,
-  "latest": "2026-08-05",
+  "updatedAt": "2026-08-06T10:56:09+00:00",
+  "count": 420,
+  "latest": "2026-08-06",
   "daily": [
-    {
-      "date": "2024-11-12",
-      "open": 5.27,
-      "close": 5.07,
-      "high": 5.29,
-      "low": 5.0,
-      "volume": 784235.0,
-      "amount": 397607145.0,
-      "amplitude": 5.5028,
-      "changePct": -3.7951,
-      "change": -0.2,
-      "turnover": null
-    },
-    {
-      "date": "2024-11-13",
-      "open": 5.02,
-      "close": 5.07,
-      "high": 5.07,
-      "low": 4.91,
-      "volume": 419410.0,
-      "amount": 212640870.0,
-      "amplitude": 3.1558,
-      "changePct": 0.0,
-      "change": 0.0,
-      "turnover": null
-    },
     {
       "date": "2024-11-14",
       "open": 5.05,
@@ -41,9 +15,9 @@
       "low": 4.9,
       "volume": 395568.0,
       "amount": 194223888.0,
-      "amplitude": 3.5503,
-      "changePct": -3.1558,
-      "change": -0.16,
+      "amplitude": 3.5644,
+      "changePct": -2.7723,
+      "change": -0.14,
       "turnover": null
     },
     {
@@ -5478,6 +5452,19 @@
       "amplitude": 13.065,
       "changePct": 6.5908,
       "change": 2.26,
+      "turnover": null
+    },
+    {
+      "date": "2026-08-06",
+      "open": 35.6,
+      "close": 38.38,
+      "high": 38.54,
+      "low": 35.39,
+      "volume": 1973975.0,
+      "amount": 7576116050.0,
+      "amplitude": 8.6183,
+      "changePct": 5.0068,
+      "change": 1.83,
       "turnover": null
     }
   ]
