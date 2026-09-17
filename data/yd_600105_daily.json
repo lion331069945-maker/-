@@ -3,23 +3,10 @@
   "name": "永鼎股份",
   "market": "SH",
   "source": "Tencent qfqday",
-  "updatedAt": "2026-09-17T13:31:43+00:00",
-  "count": 421,
+  "updatedAt": "2026-09-17T16:56:16+00:00",
+  "count": 420,
   "latest": "2026-09-17",
   "daily": [
-    {
-      "date": "2024-12-25",
-      "open": 5.17,
-      "close": 4.94,
-      "high": 5.18,
-      "low": 4.86,
-      "volume": 737974.0,
-      "amount": 364559156.0,
-      "amplitude": 6.1896,
-      "changePct": -4.4487,
-      "change": -0.23,
-      "turnover": null
-    },
     {
       "date": "2024-12-26",
       "open": 4.91,
@@ -28,9 +15,9 @@
       "low": 4.9,
       "volume": 559881.0,
       "amount": 285539310.0,
-      "amplitude": 5.0607,
-      "changePct": 3.2389,
-      "change": 0.16,
+      "amplitude": 5.0916,
+      "changePct": 3.8697,
+      "change": 0.19,
       "turnover": null
     },
     {
